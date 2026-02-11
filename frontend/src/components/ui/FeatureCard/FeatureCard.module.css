@@ -1,0 +1,126 @@
+/**
+ * FeatureCard Styles
+ * Story 19.1 - Использует токены дизайн-системы из globals.css
+ */
+
+.featureCard {
+  background: var(--color-neutral-100);
+  border-radius: var(--radius-md); /* 16px */
+  box-shadow: var(--shadow-default);
+  padding: var(--spacing-6); /* 24px */
+  transition: all var(--duration-medium) var(--easing);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4); /* 16px */
+}
+
+/* Hover эффект - поднятие -2px, shadow-hover */
+.featureCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Варианты */
+.featureCard.default {
+  flex-direction: column;
+  text-align: center;
+  align-items: center;
+}
+
+.featureCard.horizontal {
+  flex-direction: row;
+  text-align: left;
+  align-items: flex-start;
+}
+
+.featureCard.compact {
+  flex-direction: column;
+  padding: var(--spacing-4); /* 16px */
+  gap: var(--spacing-2); /* 8px */
+  text-align: center;
+  align-items: center;
+}
+
+/* Icon wrapper */
+.iconWrapper {
+  width: 64px;
+  height: 64px;
+  background: var(--color-primary-subtle); /* #E7F3FF */
+  border-radius: var(--radius-default); /* 12px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--duration-medium) var(--easing);
+}
+
+.featureCard:hover .iconWrapper {
+  background: var(--color-secondary-subtle);
+}
+
+.icon {
+  color: var(--color-primary);
+}
+
+/* Content */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2); /* 8px */
+  flex: 1;
+}
+
+.title {
+  font-size: var(--font-size-title-m); /* 20px */
+  line-height: var(--line-height-title-m); /* 28px */
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.description {
+  font-size: var(--font-size-body-m); /* 16px */
+  line-height: var(--line-height-body-m); /* 24px */
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Compact variant adjustments */
+.compact .iconWrapper {
+  width: 48px;
+  height: 48px;
+}
+
+.compact .icon {
+  width: 32px;
+  height: 32px;
+}
+
+.compact .title {
+  font-size: var(--font-size-body-l); /* 18px */
+  line-height: var(--line-height-body-l); /* 28px */
+}
+
+.compact .description {
+  font-size: var(--font-size-body-s); /* 14px */
+  line-height: var(--line-height-body-s); /* 20px */
+}
+
+/* Focus styles for accessibility */
+.featureCard:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .featureCard,
+  .iconWrapper {
+    transition: none;
+  }
+
+  .featureCard:hover {
+    transform: none;
+  }
+}

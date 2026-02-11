@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FREESPORT | Беговая Коллекция</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;0,900;1,700;1,900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #ff6b00;
+        --primary-dark: #e65100;
+        --bg-color: #0a0a0a;
+        --card-bg: #141414;
+        --text-color: #ffffff;
+        --text-muted: #888888;
+        --border-color: #333333;
+        --font-main: 'Roboto', sans-serif;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: var(--font-main);
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.5;
+      }
+
+      /* HEADER */
+      header {
+        background-color: #000;
+        border-bottom: 2px solid var(--primary);
+        padding: 20px 0;
+        text-align: center;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
+      }
+
+      .logo {
+        font-size: 2.5rem;
+        font-weight: 900;
+        font-style: italic;
+        color: var(--primary);
+        letter-spacing: -1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      /* CONTAINER */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
+
+      .section-title {
+        font-size: 2rem;
+        text-transform: uppercase;
+        font-weight: 800;
+        font-style: italic;
+        margin-bottom: 40px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .section-title::after {
+        content: '';
+        flex-grow: 1;
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary), transparent);
+      }
+
+      /* GRID */
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 30px;
+      }
+
+      /* CARD */
+      .product-card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .product-card:hover {
+        transform: translateY(-10px);
+        border-color: var(--primary);
+        box-shadow: 0 10px 30px rgba(255, 107, 0, 0.15);
+      }
+
+      /* BADGES */
+      .badge {
+        position: absolute;
+        top: 15px;
+        left: 0;
+        background-color: var(--primary);
+        color: #fff;
+        padding: 5px 15px;
+        font-weight: 700;
+        font-style: italic;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        clip-path: polygon(0 0, 100% 0, 90% 100%, 0 100%);
+        z-index: 10;
+      }
+
+      .badge.sale {
+        background-color: #d32f2f;
+      }
+
+      /* IMAGE AREA */
+      .image-wrapper {
+        width: 100%;
+        height: 250px;
+        background: radial-gradient(circle at center, #2a2a2a 0%, #141414 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .image-wrapper img {
+        width: 90%;
+        height: auto;
+        object-fit: contain;
+        transition: transform 0.4s ease;
+        filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.5));
+      }
+
+      .product-card:hover .image-wrapper img {
+        transform: scale(1.1) rotate(-5deg);
+      }
+
+      /* INFO AREA */
+      .product-info {
+        padding: 20px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .product-category {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 5px;
+      }
+
+      .product-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        font-style: italic;
+        margin-bottom: 15px;
+        line-height: 1.2;
+      }
+
+      .product-specs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .spec-tag {
+        background: #222;
+        border: 1px solid #333;
+        color: #aaa;
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 2px;
+      }
+
+      .price-row {
+        margin-top: auto;
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .price {
+        font-size: 1.5rem;
+        font-weight: 900;
+        color: var(--primary);
+      }
+
+      .old-price {
+        font-size: 1rem;
+        text-decoration: line-through;
+        color: #666;
+      }
+
+      /* BUTTONS */
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 0 20px 20px 20px;
+      }
+
+      .btn {
+        padding: 12px 0;
+        text-transform: uppercase;
+        font-weight: 800;
+        font-style: italic;
+        font-size: 0.9rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+      }
+
+      .btn-primary {
+        background-color: var(--primary);
+        color: white;
+        clip-path: polygon(
+          10px 0,
+          100% 0,
+          100% calc(100% - 10px),
+          calc(100% - 10px) 100%,
+          0 100%,
+          0 10px
+        );
+      }
+
+      .btn-primary:hover {
+        background-color: var(--primary-dark);
+        transform: skew(-5deg);
+      }
+
+      .btn-outline {
+        background-color: transparent;
+        border: 2px solid #333;
+        color: #fff;
+      }
+
+      .btn-outline:hover {
+        border-color: #fff;
+        background-color: #fff;
+        color: #000;
+      }
+
+      /* RESPONSIVE */
+      @media (max-width: 600px) {
+        .product-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .logo {
+          font-size: 2rem;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="#" class="logo">
+        <img src="/Freesport_logo.svg" alt="FREESPORT" style="height: 40px; display: block" />
+      </a>
+    </header>
+
+    <main class="container">
+      <h1 class="section-title">Серия: Pro Running</h1>
+
+      <div class="product-grid">
+        <!-- Card 1 -->
+        <article class="product-card">
+          <span class="badge">Новинка</span>
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Nike Red"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Мужской бег</div>
+            <h3 class="product-title">Velocity Nitro X1</h3>
+            <div class="product-specs">
+              <span class="spec-tag">Шоссе</span>
+              <span class="spec-tag">Легкие</span>
+            </div>
+            <div class="price-row">
+              <span class="price">14 990 ₽</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary">В корзину</button>
+            <button class="btn btn-outline">Подробнее</button>
+          </div>
+        </article>
+
+        <!-- Card 2 -->
+        <article class="product-card">
+          <span class="badge sale">SALE -20%</span>
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Green Sport"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Трейлраннинг</div>
+            <h3 class="product-title">Forest Ranger Pro</h3>
+            <div class="product-specs">
+              <span class="spec-tag">Грунт</span>
+              <span class="spec-tag">Gore-Tex</span>
+            </div>
+            <div class="price-row">
+              <span class="price">11 200 ₽</span>
+              <span class="old-price">14 000 ₽</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary">В корзину</button>
+            <button class="btn btn-outline">Подробнее</button>
+          </div>
+        </article>
+
+        <!-- Card 3 -->
+        <article class="product-card">
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Urban"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Женский бег</div>
+            <h3 class="product-title">Aero Glide 5</h3>
+            <div class="product-specs">
+              <span class="spec-tag">Марафон</span>
+              <span class="spec-tag">Амортизация</span>
+            </div>
+            <div class="price-row">
+              <span class="price">16 500 ₽</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary">В корзину</button>
+            <button class="btn btn-outline">Подробнее</button>
+          </div>
+        </article>
+
+        <!-- Card 4 -->
+        <article class="product-card">
+          <span class="badge">Хит</span>
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Black"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Спринт</div>
+            <h3 class="product-title">Phantom Racer Z</h3>
+            <div class="product-specs">
+              <span class="spec-tag">Трек</span>
+              <span class="spec-tag">Шиповки</span>
+            </div>
+            <div class="price-row">
+              <span class="price">12 450 ₽</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary">В корзину</button>
+            <button class="btn btn-outline">Подробнее</button>
+          </div>
+        </article>
+
+        <!-- Card 5 -->
+        <article class="product-card">
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Orange"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Универсальные</div>
+            <h3 class="product-title">Daily Trainer V2</h3>
+            <div class="product-specs">
+              <span class="spec-tag">Зал</span>
+              <span class="spec-tag">Улица</span>
+            </div>
+            <div class="price-row">
+              <span class="price">8 990 ₽</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary">В корзину</button>
+            <button class="btn btn-outline">Подробнее</button>
+          </div>
+        </article>
+
+        <!-- Card 6 -->
+        <article class="product-card">
+          <span class="badge sale">SALE -15%</span>
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1539185441755-769473a23570?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Street"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Лайфстайл</div>
+            <h3 class="product-title">Street Flow Max</h3>
+            <div class="product-specs">
+              <span class="spec-tag">Комфорт</span>
+              <span class="spec-tag">Дышащие</span>
+            </div>
+            <div class="price-row">
+              <span class="price">10 190 ₽</span>
+              <span class="old-price">11 990 ₽</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary">В корзину</button>
+            <button class="btn btn-outline">Подробнее</button>
+          </div>
+        </article>
+      </div>
+    </main>
+  </body>
+</html>
+
+Динамичный хай-тек Урбанистический драйв Динамичный импульс Футуристичный лайфстайл Динамичный
+хай-тек

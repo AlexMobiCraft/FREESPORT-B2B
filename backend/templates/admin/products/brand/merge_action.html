@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}{{ block.super }}
+{{ media }}
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {% translate 'Merge Brands' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<p>{% blocktranslate %}Выберите целевой бренд для объединения следующих брендов. ВНИМАНИЕ: Исходные бренды будут удалены, а их маппинги и товары перенесены в целевой бренд.{% endblocktranslate %}</p>
+
+<ul>
+    {% for obj in brands %}
+        <li>{{ obj }} (ID: {{ obj.pk }})</li>
+    {% endfor %}
+</ul>
+
+<form action="" method="post">{% csrf_token %}
+    <div>
+    {% for obj in brands %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="merge_brands">
+    <input type="hidden" name="apply" value="1">
+    
+    <fieldset class="module aligned">
+        <div class="form-row">
+            {{ form.as_p }}
+        </div>
+    </fieldset>
+
+    <div class="submit-row">
+        <input type="submit" class="default" value="{% translate 'Merge Brands' %}">
+        <a href="#" onclick="window.history.back(); return false;" class="button cancel-link">{% translate "No, take me back" %}</a>
+    </div>
+    </div>
+</form>
+{% endblock %}
