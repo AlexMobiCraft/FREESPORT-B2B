@@ -1,0 +1,60 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div id="content-main">
+{% for app in app_list %}
+    {% if app.app_label == "products" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "integrations" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "common" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "orders" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "flatpages" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "users" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "auth" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% with ordered_labels="products integrations common orders flatpages users auth" %}
+    {% for app in app_list %}
+        {% if app.app_label not in ordered_labels %}
+            {% include "admin/_app_block.html" with app=app %}
+        {% endif %}
+    {% endfor %}
+{% endwith %}
+</div>
+
+{% if not app_list %}
+    <p>{% translate "You don't have permission to view or edit anything." %}</p>
+{% endif %}
+{% endblock %}

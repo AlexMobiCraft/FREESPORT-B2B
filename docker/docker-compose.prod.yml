@@ -1,0 +1,251 @@
+# Docker Compose для PRODUCTION на удаленном сервере
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: freesport-db
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/
+    networks:
+      - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: freesport-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      args:
+        DJANGO_SETTINGS_MODULE: freesport.settings.production
+    image: ${BACKEND_IMAGE:-freesport-backend:local}
+    container_name: freesport-backend
+    environment:
+      - DJANGO_SETTINGS_MODULE=freesport.settings.production
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - DEBUG=0
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - ALLOWED_HOSTS=freesport.ru,www.freesport.ru,5.35.124.149,backend,nginx,localhost,127.0.0.1
+      - CSRF_TRUSTED_ORIGINS=http://5.35.124.149,http://freesport.ru,https://5.35.124.149,https://freesport.ru,https://www.freesport.ru,http://www.freesport.ru
+      - ONEC_DATA_DIR=/app/data/import_1c
+      - SECURE_SSL_REDIRECT=${SECURE_SSL_REDIRECT}
+      # Email настройки
+      - EMAIL_BACKEND=${EMAIL_BACKEND}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USE_TLS=${EMAIL_USE_TLS}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
+      - SERVER_EMAIL=${SERVER_EMAIL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - SITE_URL=${SITE_URL}
+      - EMAIL_USE_SSL=${EMAIL_USE_SSL:-False}
+    volumes:
+      - ../backend/logs:/app/logs
+      - ../data/prod/static:/app/staticfiles
+      - ../data/prod/media:/app/media
+      - ${ONEC_DATA_DIR}:/app/data/import_1c
+    user: "1000:1000"
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; req=urllib.request.Request('http://localhost:8000/api/v1/health/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(req)" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      - db
+      - redis
+    networks:
+      - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NODE_ENV: production
+    image: ${FRONTEND_IMAGE:-freesport-frontend:local}
+    container_name: freesport-frontend
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL}
+      - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
+      - INTERNAL_API_URL=http://backend:8000
+      - ACTIVE_THEME=${ACTIVE_THEME:-coming_soon}
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: freesport-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ../data/prod/static:/var/www/static
+      - ../data/prod/media:/var/www/media
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  celery:
+    image: ${BACKEND_IMAGE:-freesport-backend:local} # Используем тот же образ, что и backend
+    container_name: freesport-celery-worker
+    command: celery -A freesport worker -l info
+    environment:
+      - DJANGO_SETTINGS_MODULE=freesport.settings.production
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - DEBUG=0
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - ONEC_DATA_DIR=/app/data/import_1c
+      # Email настройки
+      - EMAIL_BACKEND=${EMAIL_BACKEND}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USE_TLS=${EMAIL_USE_TLS}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
+      - SERVER_EMAIL=${SERVER_EMAIL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - SITE_URL=${SITE_URL}
+      - EMAIL_USE_SSL=${EMAIL_USE_SSL:-False}
+    volumes:
+      - ../backend/logs:/app/logs
+      - ${ONEC_DATA_DIR}:/app/data/import_1c
+      - ../data/prod/media:/app/media
+    user: "1000:1000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  celery-beat:
+    image: ${BACKEND_IMAGE:-freesport-backend:local} # Используем тот же образ, что и backend
+    container_name: freesport-celery-beat
+    command: celery -A freesport beat -l info
+    environment:
+      - DJANGO_SETTINGS_MODULE=freesport.settings.production
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - DEBUG=0
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      # Email настройки
+      - EMAIL_BACKEND=${EMAIL_BACKEND}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USE_TLS=${EMAIL_USE_TLS}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
+      - SERVER_EMAIL=${SERVER_EMAIL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - SITE_URL=${SITE_URL}
+      - EMAIL_USE_SSL=${EMAIL_USE_SSL:-False}
+    volumes:
+      - ../backend/logs:/app/logs
+    depends_on:
+      - db
+      - redis
+    networks:
+      - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+
+networks:
+  freesport-network:
+    name: docker_freesport-network
+    external: true

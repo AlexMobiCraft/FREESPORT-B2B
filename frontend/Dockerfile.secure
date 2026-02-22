@@ -1,0 +1,103 @@
+# Безопасный Dockerfile для Next.js frontend с multi-stage build
+# Версия: 2.0 (безопасная после инцидента с криптомайнером)
+
+# ============================================
+# Stage 1: Dependencies (проверенные зависимости)
+# ============================================
+FROM node:22.13.1-alpine3.21@sha256:07c80e43f72b0be79766ce9bb8c2912c766ff1c40f5f0e2e80f6a64bdaf57390 AS deps
+
+# Метаданные
+LABEL maintainer="FREESPORT Dev Team"
+LABEL stage="dependencies"
+
+# Security: Установка базовых зависимостей
+RUN apk add --no-cache \
+    libc6-compat \
+    dumb-init
+
+WORKDIR /app
+
+# Копирование только файлов зависимостей
+COPY package.json package-lock.json ./
+
+# CRITICAL: Установка зависимостей БЕЗ postinstall скриптов
+# Это предотвращает автоматический запуск скриптов из скомпрометированных пакетов
+RUN npm ci --prefer-offline --ignore-scripts
+
+# Затем выборочно запускаем только проверенные скрипты
+COPY scripts/install-lightningcss.js ./scripts/
+RUN node scripts/install-lightningcss.js
+
+# ============================================
+# Stage 2: Builder (сборка приложения)
+# ============================================
+FROM node:22.13.1-alpine3.21@sha256:07c80e43f72b0be79766ce9bb8c2912c766ff1c40f5f0e2e80f6a64bdaf57390 AS builder
+
+WORKDIR /app
+
+# Копирование установленных зависимостей из stage 1
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./package.json
+
+# Копирование исходного кода
+COPY . .
+
+# Build arguments
+ARG NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
+ARG NODE_ENV=production
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NODE_ENV=$NODE_ENV
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Сборка Next.js приложения
+RUN npm run build
+
+# ============================================
+# Stage 3: Runner (production минималистичный образ)
+# ============================================
+FROM node:22.13.1-alpine3.21@sha256:07c80e43f72b0be79766ce9bb8c2912c766ff1c40f5f0e2e80f6a64bdaf57390 AS runner
+
+# Метаданные
+LABEL maintainer="FREESPORT Dev Team"
+LABEL version="2.0"
+LABEL description="Secure Next.js frontend для FREESPORT Platform"
+
+WORKDIR /app
+
+# Security: Создаем non-root пользователя
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Установка только runtime зависимостей
+RUN apk add --no-cache \
+    libc6-compat \
+    dumb-init
+
+# Копирование только необходимых файлов из builder
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# Установка правильных прав доступа
+RUN chown -R nextjs:nodejs /app
+
+# Переключение на non-root пользователя
+USER nextjs
+
+# Порт
+EXPOSE 3000
+
+# Environment
+ENV PORT=3000
+ENV HOST=0.0.0.0
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=5 \
+    CMD node -e "require('http').get('http://127.0.0.1:3000/', (res) => { if (res.statusCode === 200) { process.exit(0); } process.exit(1); }).on('error', () => process.exit(1));"
+
+# Запуск через dumb-init для правильной обработки сигналов
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["node", "server.js"]

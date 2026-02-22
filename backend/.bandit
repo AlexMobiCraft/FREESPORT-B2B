@@ -1,0 +1,31 @@
+# Конфигурация Bandit для проверки безопасности кода
+# Исключаем виртуальное окружение и тестовые артефакты
+
+[bandit]
+exclude_dirs = [
+    '/venv',
+    '/htmlcov',
+    '/test-reports',
+    '/test-logs',
+    '/.pytest_cache',
+    '/migrations',
+    '/__pycache__',
+    '/.venv',
+    '/env',
+    '/.tox'
+]
+
+# Исключаем тесты из некоторых проверок
+skips = []
+
+# Уровень серьезности для отчета (LOW, MEDIUM, HIGH)
+level = MEDIUM
+
+# Уровень доверия (LOW, MEDIUM, HIGH)
+confidence = MEDIUM
+
+# Формат вывода
+format = txt
+
+# Показывать прогресс
+verbose = False

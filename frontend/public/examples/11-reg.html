@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FREESPORT Auth</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,700;1,900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --fs-orange: #ff6b00;
+        --fs-black: #0a0a0a;
+        --fs-dark-grey: #1a1a1a;
+        --fs-light-grey: #f4f4f4;
+        --fs-white: #ffffff;
+        --fs-speed-skew: -10deg;
+        --fs-transition: 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        outline: none;
+      }
+
+      body {
+        font-family: 'Roboto', sans-serif;
+        background-color: var(--fs-black);
+        color: var(--fs-white);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-image:
+          linear-gradient(
+            45deg,
+            rgba(20, 20, 20, 1) 25%,
+            transparent 25%,
+            transparent 75%,
+            rgba(20, 20, 20, 1) 75%,
+            rgba(20, 20, 20, 1)
+          ),
+          linear-gradient(
+            45deg,
+            rgba(20, 20, 20, 1) 25%,
+            transparent 25%,
+            transparent 75%,
+            rgba(20, 20, 20, 1) 75%,
+            rgba(20, 20, 20, 1)
+          );
+        background-size: 20px 20px;
+        background-position:
+          0 0,
+          10px 10px;
+      }
+
+      /* Компонент формы */
+      .fs-auth-component {
+        position: relative;
+        width: 100%;
+        max-width: 420px;
+        background: var(--fs-dark-grey);
+        padding: 40px;
+        border: 1px solid #333;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+        overflow: hidden;
+      }
+
+      /* Декоративная линия "Скорость" */
+      .fs-auth-component::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 6px;
+        height: 100%;
+        background: var(--fs-orange);
+        transform: skewX(var(--fs-speed-skew));
+        transform-origin: top;
+        left: -10px;
+        /* Сдвиг для эффекта */
+        box-shadow: 0 0 15px var(--fs-orange);
+      }
+
+      /* Логотип */
+      .fs-logo-container {
+        margin-bottom: 30px;
+        text-align: center;
+      }
+
+      .fs-logo {
+        height: 48px;
+        width: auto;
+        filter: drop-shadow(0 0 5px rgba(255, 107, 0, 0.3));
+      }
+
+      /* Переключатель Вход/Регистрация (CSS Logic) */
+      .fs-tabs {
+        display: flex;
+        margin-bottom: 30px;
+        position: relative;
+        border-bottom: 2px solid #333;
+      }
+
+      .fs-tab-label {
+        flex: 1;
+        text-align: center;
+        padding: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 14px;
+        color: #666;
+        transition: var(--fs-transition);
+        font-style: italic;
+      }
+
+      .fs-tab-label:hover {
+        color: var(--fs-white);
+      }
+
+      /* Скрытые радио кнопки управляют состоянием */
+      input[type='radio'] {
+        display: none;
+      }
+
+      /* Индикатор активного таба */
+      .fs-active-line {
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 50%;
+        height: 2px;
+        background: var(--fs-orange);
+        transition: var(--fs-transition);
+        box-shadow: 0 -2px 10px var(--fs-orange);
+      }
+
+      #tab-reg:checked ~ .fs-tabs .fs-active-line {
+        transform: translateX(100%);
+      }
+
+      #tab-login:checked ~ .fs-tabs label[for='tab-login'],
+      #tab-reg:checked ~ .fs-tabs label[for='tab-reg'] {
+        color: var(--fs-orange);
+      }
+
+      /* Контейнеры форм */
+      .fs-form-group {
+        display: none;
+        animation: fadeIn 0.4s ease-out;
+      }
+
+      #tab-login:checked ~ .form-login,
+      #tab-reg:checked ~ .form-register {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Поля ввода */
+      .input-wrapper {
+        position: relative;
+        margin-bottom: 20px;
+      }
+
+      .fs-input {
+        width: 100%;
+        padding: 14px 16px;
+        background: #000;
+        border: 2px solid #333;
+        color: var(--fs-white);
+        font-size: 16px;
+        font-family: 'Roboto', sans-serif;
+        transition: var(--fs-transition);
+        border-radius: 0;
+        /* Строгий стиль */
+      }
+
+      .fs-input:focus {
+        border-color: var(--fs-orange);
+        box-shadow: 0 0 10px rgba(255, 107, 0, 0.2);
+        transform: skewX(-2deg);
+        /* Микро-анимация скорости */
+      }
+
+      .fs-input::placeholder {
+        color: #555;
+        font-style: italic;
+      }
+
+      /* Глаз (показать пароль) */
+      .toggle-password {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #666;
+        transition: 0.2s;
+      }
+
+      .toggle-password:hover {
+        color: var(--fs-orange);
+      }
+
+      /* Индикатор сложности пароля (только для регистрации) */
+      .password-strength {
+        height: 4px;
+        background: #333;
+        margin-top: -15px;
+        margin-bottom: 20px;
+        width: 100%;
+        display: flex;
+      }
+
+      .strength-bar {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      /* Логика стилизации бара через CSS classes (имитация) */
+      .input-wrapper:focus-within + .password-strength .strength-bar {
+        width: 33%;
+        background: red;
+      }
+
+      /* В реальном проекте JS меняет ширину и цвет */
+
+      /* Кнопки */
+      .fs-btn {
+        display: block;
+        width: 100%;
+        padding: 16px;
+        background: var(--fs-orange);
+        color: var(--fs-white);
+        border: none;
+        font-size: 18px;
+        font-weight: 900;
+        font-style: italic;
+        text-transform: uppercase;
+        cursor: pointer;
+        position: relative;
+        transform: skewX(var(--fs-speed-skew));
+        /* Форма кнопки */
+        transition: var(--fs-transition);
+        margin-top: 10px;
+      }
+
+      /* Компенсация наклона текста внутри кнопки */
+      .fs-btn span {
+        display: block;
+        transform: skewX(10deg);
+      }
+
+      .fs-btn:hover {
+        background: #ff8533;
+        box-shadow: 0 0 20px rgba(255, 107, 0, 0.6);
+        transform: skewX(var(--fs-speed-skew)) translateY(-2px);
+      }
+
+      .fs-btn:active {
+        transform: skewX(var(--fs-speed-skew)) translateY(1px);
+      }
+
+      /* Ссылки и подвал */
+      .fs-footer {
+        margin-top: 25px;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .fs-link {
+        color: #888;
+        text-decoration: none;
+        transition: 0.2s;
+        border-bottom: 1px solid transparent;
+      }
+
+      .fs-link:hover {
+        color: var(--fs-orange);
+        border-bottom-color: var(--fs-orange);
+      }
+
+      /* Checkbox (Запомнить меня) */
+      .fs-checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        font-size: 14px;
+        color: #ccc;
+      }
+
+      .fs-checkbox {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #444;
+        background: #000;
+        margin-right: 10px;
+        cursor: pointer;
+        position: relative;
+      }
+
+      .fs-checkbox:checked {
+        border-color: var(--fs-orange);
+        background: var(--fs-orange);
+      }
+
+      .fs-checkbox:checked::after {
+        content: '✓';
+        position: absolute;
+        color: white;
+        font-size: 14px;
+        top: -2px;
+        left: 2px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="fs-auth-component">
+      <div class="fs-logo-container">
+        <img src="/logo.svg" alt="FREESPORT" class="fs-logo" />
+      </div>
+
+      <!-- Inputs for Tab Logic -->
+      <input type="radio" name="auth-tab" id="tab-login" checked />
+      <input type="radio" name="auth-tab" id="tab-reg" />
+
+      <!-- Tabs Headers -->
+      <div class="fs-tabs">
+        <label for="tab-login" class="fs-tab-label">Вход</label>
+        <label for="tab-reg" class="fs-tab-label">Регистрация</label>
+        <div class="fs-active-line"></div>
+      </div>
+
+      <!-- FORM: LOGIN -->
+      <div class="form-login fs-form-group">
+        <div class="input-wrapper">
+          <input type="email" class="fs-input" placeholder="E-mail" required />
+        </div>
+
+        <div class="input-wrapper">
+          <input type="password" class="fs-input js-password-input" placeholder="Пароль" required />
+          <!-- SVG Icon Eye -->
+          <svg
+            class="toggle-password js-toggle-pass"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </div>
+
+        <div class="fs-checkbox-wrapper">
+          <input type="checkbox" id="remember-me" class="fs-checkbox" />
+          <label for="remember-me">Запомнить меня</label>
+        </div>
+
+        <button class="fs-btn"><span>Войти</span></button>
+
+        <div class="fs-footer">
+          <a href="#" class="fs-link">Забыли пароль?</a>
+        </div>
+      </div>
+
+      <!-- FORM: REGISTRATION -->
+      <div class="form-register fs-form-group">
+        <div class="input-wrapper">
+          <input type="email" class="fs-input" placeholder="E-mail" required />
+        </div>
+
+        <div class="input-wrapper">
+          <input
+            type="password"
+            class="fs-input js-password-input-reg"
+            id="reg-pass"
+            placeholder="Придумайте пароль"
+            required
+          />
+          <svg
+            class="toggle-password js-toggle-pass-reg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </div>
+
+        <!-- Визуальная имитация бара сложности пароля -->
+        <div class="password-strength">
+          <div class="strength-bar" id="strength-bar"></div>
+        </div>
+
+        <div class="input-wrapper">
+          <input type="password" class="fs-input" placeholder="Повторите пароль" required />
+        </div>
+
+        <button class="fs-btn"><span>Создать аккаунт</span></button>
+
+        <div class="fs-footer">
+          <span style="color: #666">Есть аккаунт?</span>
+          <label for="tab-login" class="fs-link" style="cursor: pointer">Войти</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minimal JS for Password Toggle Logic -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        // Функция переключения видимости пароля
+        const setupToggle = (btnSelector, inputSelector) => {
+          const btn = document.querySelector(btnSelector);
+          const input = document.querySelector(inputSelector);
+
+          if (btn && input) {
+            btn.addEventListener('click', () => {
+              const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+              input.setAttribute('type', type);
+              // Меняем цвет иконки при активности
+              btn.style.color = type === 'text' ? '#ff6b00' : '#666';
+            });
+          }
+        };
+
+        setupToggle('.js-toggle-pass', '.js-password-input');
+        setupToggle('.js-toggle-pass-reg', '.js-password-input-reg');
+
+        // Простая визуализация сложности пароля
+        const regInput = document.getElementById('reg-pass');
+        const strengthBar = document.getElementById('strength-bar');
+
+        if (regInput && strengthBar) {
+          regInput.addEventListener('input', e => {
+            const val = e.target.value;
+            let width = 0;
+            let color = 'red';
+
+            if (val.length > 0) width = 20;
+            if (val.length > 5) {
+              width = 50;
+              color = 'orange';
+            }
+            if (val.length > 8 && /[A-Z]/.test(val)) {
+              width = 100;
+              color = '#ff6b00';
+            } // Brand Orange
+
+            strengthBar.style.width = width + '%';
+            strengthBar.style.background = color;
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
+
+Атлетический минимализм Урбанистический драйв Урбанистическая мощь Футуристичный лайфстайл
+Атлетический контраст Футуристичный лайфстайл Технологичный атлетизм Брутальная энергия
+Технологичный лайфстайл Энергия скорости

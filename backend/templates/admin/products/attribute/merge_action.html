@@ -1,0 +1,79 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}{{ block.super }}
+{{ media }}
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {% translate 'Merge Attributes' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{% translate "Объединение атрибутов" %}</h1>
+
+<p>{% blocktranslate %}Выберите целевой атрибут для объединения следующих атрибутов.{% endblocktranslate %}</p>
+
+<div class="module" style="margin-bottom: 20px;">
+    <h2>{% translate "Атрибуты для объединения" %}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>{% translate "Название" %}</th>
+                <th>{% translate "Маппингов 1С" %}</th>
+                <th>{% translate "Значений" %}</th>
+                <th>{% translate "Активен" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for obj in attributes %}
+            <tr>
+                <td>{{ obj.name }}</td>
+                <td>{{ obj.mappings_count }}</td>
+                <td>{{ obj.values_count }}</td>
+                <td>{% if obj.is_active %}✅{% else %}❌{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="module" style="margin-bottom: 20px; padding: 10px; background-color: #ffc;">
+    <h2>{% translate "Итого будет перенесено" %}</h2>
+    <ul>
+        <li><strong>{{ total_mappings }}</strong> {% translate "маппингов 1С" %}</li>
+        <li><strong>{{ total_values }}</strong> {% translate "значений атрибутов" %}</li>
+    </ul>
+    <p style="color: #c00; font-weight: bold;">
+        {% blocktranslate %}ВНИМАНИЕ: Исходные атрибуты будут удалены после объединения!{% endblocktranslate %}
+    </p>
+</div>
+
+<form action="" method="post">{% csrf_token %}
+    <div>
+    {% for obj in attributes %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="merge_attributes">
+    <input type="hidden" name="apply" value="1">
+    
+    <fieldset class="module aligned">
+        <div class="form-row">
+            {{ form.as_p }}
+        </div>
+    </fieldset>
+
+    <div class="submit-row">
+        <input type="submit" class="default" value="{% translate 'Объединить атрибуты' %}">
+        <a href="#" onclick="window.history.back(); return false;" class="button cancel-link">{% translate "Отмена" %}</a>
+    </div>
+    </div>
+</form>
+{% endblock %}

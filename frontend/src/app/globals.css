@@ -1,0 +1,309 @@
+@import 'tailwindcss';
+
+/**
+ * FREESPORT Design System - Tailwind CSS 4.0 Tokens
+ * Based on design-system.json v2.2.0
+ *
+ * MIGRATION NOTE (2026-02-10):
+ * Цветовая схема обновлена с синей на оранжевую (#FF6B00).
+ * Стиль "Ozon-Friendly" сохранен (скругления 12px, мягкие тени).
+ * Фоновый цвет обновлен на нейтральный #F8F9FA.
+ */
+
+@theme inline {
+  /* Colors - Primary (Orange) */
+  --color-primary: #ff6600;
+  --color-primary-hover: #e65c00;
+  --color-primary-active: #cc5200;
+  --color-primary-subtle: #fff4e6;
+
+  /* Colors - Secondary (Cyan/Blue - kept for contrast) */
+  --color-secondary: #00b7ff;
+  --color-secondary-hover: #0095d6;
+  --color-secondary-active: #0078b3;
+  --color-secondary-subtle: #e1f5ff;
+
+  /* Colors - Accent */
+  --color-accent-success: #00aa5b;
+  --color-accent-success-bg: #e0f5e8;
+  --color-accent-warning: #f5a623;
+  --color-accent-warning-bg: #fff1cc;
+  --color-accent-danger: #e53935;
+  --color-accent-danger-bg: #ffe1e8;
+  --color-accent-promo: #ff2e93;
+  --color-accent-promo-bg: #fff0f5;
+
+  /* Colors - Neutral Scale */
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #f8f9fa;
+  --color-neutral-300: #e3e8f2;
+  --color-neutral-400: #b9c3d6;
+  --color-neutral-500: #8f9bb3;
+  --color-neutral-600: #6b7a99;
+  --color-neutral-700: #4b5c7a;
+  --color-neutral-800: #2d3a52;
+  --color-neutral-900: #1f2a44;
+
+  /* Colors - Text */
+  --color-text-primary: #1f2a44;
+  --color-text-secondary: #4b5c7a;
+  --color-text-muted: #7f8ca8;
+  --color-text-inverse: #ffffff;
+
+  /* Typography - Color Usage (специфические цвета для типографики) */
+  --color-typography-primary: #1f2a44;
+  --color-typography-secondary: #4b5c7a;
+  --color-typography-muted: #7f8ca8;
+  --color-typography-inverse: #ffffff;
+
+  /* Typography - Font Family */
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Typography - Font Sizes */
+  --font-size-display-l: 48px;
+  --font-size-display-m: 40px;
+  --font-size-headline-l: 32px;
+  --font-size-headline-m: 28px;
+  --font-size-title-l: 24px;
+  --font-size-title-m: 20px;
+  --font-size-body-l: 18px;
+  --font-size-body-m: 16px;
+  --font-size-body-s: 14px;
+  --font-size-caption: 12px;
+
+  /* Typography - Line Heights */
+  --line-height-display-l: 56px;
+  --line-height-display-m: 48px;
+  --line-height-headline-l: 40px;
+  --line-height-headline-m: 36px;
+  --line-height-title-l: 32px;
+  --line-height-title-m: 28px;
+  --line-height-body-l: 28px;
+  --line-height-body-m: 24px;
+  --line-height-body-s: 20px;
+  --line-height-caption: 16px;
+
+  /* Spacing Scale */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-14: 56px;
+  --spacing-16: 64px;
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Backgrounds */
+  --bg-canvas: #f8f9fa;
+  --bg-panel: #ffffff;
+  --bg-emphasis: linear-gradient(135deg, rgba(255, 102, 0, 0.12), rgba(255, 160, 0, 0.08));
+
+  /* Shadows */
+  --shadow-default: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-hover: 0 10px 32px rgba(15, 23, 42, 0.12);
+  --shadow-primary: 0 4px 14px rgba(255, 102, 0, 0.35);
+  --shadow-secondary: 0 2px 8px rgba(0, 183, 255, 0.16);
+  --shadow-pressed: inset 0 2px 4px rgba(204, 82, 0, 0.24);
+  --shadow-modal: 0 24px 64px rgba(15, 23, 42, 0.24);
+
+  /* Focus states */
+  --focus-ring: 0 0 0 4px rgba(255, 102, 0, 0.12);
+  --focus-outline: 2px solid rgba(255, 102, 0, 0.6);
+
+  /* Motion */
+  --duration-short: 120ms;
+  --duration-medium: 180ms;
+  --easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root {
+  --background: var(--color-neutral-100);
+  --foreground: var(--color-text-primary);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Utility Classes */
+@layer utilities {
+  .text-display-l {
+    font-size: var(--font-size-display-l);
+    line-height: var(--line-height-display-l);
+    font-weight: 700;
+  }
+
+  .text-display-m {
+    font-size: var(--font-size-display-m);
+    line-height: var(--line-height-display-m);
+    font-weight: 700;
+  }
+
+  .text-headline-l {
+    font-size: var(--font-size-headline-l);
+    line-height: var(--line-height-headline-l);
+    font-weight: 700;
+  }
+
+  .text-headline-m {
+    font-size: var(--font-size-headline-m);
+    line-height: var(--line-height-headline-m);
+    font-weight: 600;
+  }
+
+  .text-title-l {
+    font-size: var(--font-size-title-l);
+    line-height: var(--line-height-title-l);
+    font-weight: 600;
+  }
+
+  .text-title-m {
+    font-size: var(--font-size-title-m);
+    line-height: var(--line-height-title-m);
+    font-weight: 600;
+  }
+
+  .text-body-l {
+    font-size: var(--font-size-body-l);
+    line-height: var(--line-height-body-l);
+    font-weight: 500;
+  }
+
+  .text-body-m {
+    font-size: var(--font-size-body-m);
+    line-height: var(--line-height-body-m);
+    font-weight: 500;
+  }
+
+  .text-body-s {
+    font-size: var(--font-size-body-s);
+    line-height: var(--line-height-body-s);
+    font-weight: 500;
+  }
+
+  .typo-body-l {
+    font-size: var(--font-size-body-l);
+    line-height: var(--line-height-body-l);
+    font-weight: 500;
+  }
+
+  .typo-body-m {
+    font-size: var(--font-size-body-m);
+    line-height: var(--line-height-body-m);
+    font-weight: 500;
+  }
+
+  .typo-body-s {
+    font-size: var(--font-size-body-s);
+    line-height: var(--line-height-body-s);
+    font-weight: 500;
+  }
+
+  .text-caption {
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+    font-weight: 500;
+  }
+}
+
+/* Scrollbar Hide Utility (Story 11.2) */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Modal & Toast Animations */
+@layer utilities {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideOutRight {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn var(--duration-medium) var(--easing);
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn var(--duration-medium) var(--easing);
+  }
+
+  .animate-slideInRight {
+    animation: slideInRight var(--duration-medium) var(--easing);
+  }
+
+  .animate-slideOutRight {
+    animation: slideOutRight var(--duration-medium) var(--easing);
+  }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

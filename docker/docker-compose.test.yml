@@ -1,0 +1,92 @@
+# Docker Compose для тестирования FREESPORT Platform
+
+services:
+  # PostgreSQL тестовая база данных
+  db:
+    image: postgres:15-alpine
+    container_name: freesport-test-db
+    environment:
+      POSTGRES_DB: freesport_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # Другой порт чтобы не конфликтовать с основной БД
+    networks:
+      - freesport-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freesport_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /tmp
+    shm_size: 256mb
+
+  # Redis для тестового кеширования  
+  redis:
+    image: redis:7-alpine
+    container_name: freesport-test-redis
+    command: redis-server --appendonly no --save "" --requirepass redis123
+    ports:
+      - "6380:6379"  # Другой порт чтобы не конфликтовать с основным Redis
+    networks:
+      - freesport-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    tmpfs:
+      - /data
+
+  # Django Backend для тестирования
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.test
+      args:
+        DJANGO_SETTINGS_MODULE: freesport.settings.test
+    container_name: freesport-backend-test
+    environment:
+      - DJANGO_SETTINGS_MODULE=freesport.settings.test
+      - SECRET_KEY=test-secret-key-for-testing-only
+      - DB_NAME=freesport_test
+      - DB_USER=postgres
+      - DB_PASSWORD=password123
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://:redis123@redis:6379/1
+      - DEBUG=0
+      - PYTHONUTF8=1
+      - PYTHONUNBUFFERED=1
+      # Настройки для pytest
+      - PYTEST_CURRENT_TEST=1
+      - TEST_RUNNER=pytest
+    volumes:
+      # Используем относительные пути, которые будут работать на любой машине
+      - ../backend:/app
+      # Раскомментировали монтирование данных для тестов импорта изображений
+      - ../data/import_1c:/app/data/import_1c
+      - test_coverage:/app/htmlcov
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - freesport-test-network
+    # По умолчанию запускаем все тесты
+    command: ["pytest", "-v", "--cov=apps", "--cov-report=html", "--cov-report=term"]
+
+volumes:
+  test_postgres_data:
+    driver: local
+  test_coverage:
+    driver: local
+
+networks:
+  freesport-test-network:
+    driver: bridge
+    name: freesport-test-network

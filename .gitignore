@@ -1,0 +1,199 @@
+# FREESPORT Monorepo .gitignore
+# Root level ignores for the entire project
+
+# Environment variables and secrets
+.env
+.env.local
+#.env.prod
+.env.staging
+*.key
+*.pem
+*.p12
+nul
+celerybeat-schedule*
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+#.gemini
+#.windsurf
+#.bmad/
+#.bmad-output
+#.kilocodemodes
+#.roomodes
+#.web-bundles/
+*~
+#.agent
+#.agents
+#.agentvibes
+#.claude
+#.devin
+#.gemini-clipboard
+#.kilocode
+#AGENTS.md
+#GEMINI.md
+#CLAUDE.md
+#project-context.md
+#codebase.xml
+
+# Claude Code local settings (user-specific)
+.claude/settings.local.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+playwright-report/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Dependency directories
+node_modules/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Backup files
+*.backup
+*.bak
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+nul
+
+# Build artifacts
+dist/
+build/
+.next/
+out/
+
+# Python specific (Backend)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Django specific
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static_root/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+#.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+#.env.prod
+backend/.ssh/
+backend/celerybeat-schedule.dat
+
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Архивы
+#.\docs\arhiv
+
+# Мои рабочие документы
+#.\docs\Отчет_для_заказчика.md
+#Проверить-.txt
+
+# Обменные файлы
+.\data\import_1c
+data/import_1c/
+backend/celerybeat-schedule.dat
+import_1c.tar.gz
+
+# GitHub Actions logs
+.github/logs_*/
+data/import_1c.zip
+import_data_xml_only.zip

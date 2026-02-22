@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" version="1.0">
+
+ <metadata id="metadata7">image/svg+xml</metadata>
+ <g class="layer">
+  <title>Layer 1</title>
+  <g id="layer1">
+   <path d="m580,300a280,280 0 1 1 -560,0a280,280 0 1 1 560,0z" fill="#ffffff" fill-rule="nonzero" id="path2162" stroke="#e2e2e2" stroke-dashoffset="0" stroke-linecap="square" stroke-miterlimit="4" stroke-width="10"/>
+   <text fill="#ffffff" font-family="&#x27;Bitstream Vera Sans&#x27;" font-size="12px" font-style="normal" font-weight="normal" id="text3134" stroke="#e2e2e2" stroke-width="1px" text-anchor="middle" x="300.03" xml:space="preserve" y="230.55">
+    <tspan fill="#ffffff" font-family="&#x27;Lucida Sans Unicode&#x27;" font-size="64px" font-style="normal" font-weight="normal" id="tspan3138" stroke="#e2e2e2" text-anchor="middle" x="300.03" y="230.55">НЕТ</tspan>
+    <tspan fill="#ffffff" font-family="&#x27;Lucida Sans Unicode&#x27;" font-size="64px" font-style="normal" font-weight="normal" id="tspan2245" stroke="#e2e2e2" text-anchor="middle" x="300.03" y="310.55">ДОСТУПНОГО</tspan>
+    <tspan fill="#ffffff" font-family="&#x27;Lucida Sans Unicode&#x27;" font-size="64px" font-style="normal" font-weight="normal" id="tspan3142" stroke="#e2e2e2" text-anchor="middle" x="300.03" y="390.55">ИЗОБРАЖЕНИЯ</tspan>
+   </text>
+  </g>
+ </g>
+</svg>

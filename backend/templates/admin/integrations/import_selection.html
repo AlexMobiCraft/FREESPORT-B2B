@@ -1,0 +1,227 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .import-selection-form {
+        max-width: 800px;
+        margin: 20px auto;
+        background: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .import-selection-form h2 {
+        margin-top: 0;
+        color: #417690;
+        font-size: 24px;
+        margin-bottom: 30px;
+    }
+
+    .checkbox-group {
+        margin: 20px 0;
+    }
+
+    .checkbox-item {
+        display: block;
+        margin-bottom: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        border-left: 4px solid #417690;
+    }
+
+    .checkbox-item label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin-right: 12px;
+        cursor: pointer;
+    }
+
+    .checkbox-label {
+        flex: 1;
+    }
+
+    .checkbox-label strong {
+        display: block;
+        font-size: 16px;
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .checkbox-hint {
+        display: block;
+        color: #666;
+        font-size: 13px;
+        font-style: italic;
+    }
+
+    .form-actions {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-primary {
+        background-color: #417690;
+        color: white;
+        padding: 10px 24px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #2e5266;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        padding: 10px 24px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.2s;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+
+    .info-box {
+        background: #d1ecf1;
+        border: 1px solid #bee5eb;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #0c5460;
+    }
+
+    .info-box strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .btn-primary:disabled {
+        background-color: #9ca3af;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+</style>
+<script>
+    // Предотвращение двойного клика на кнопке импорта
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const submitButton = document.querySelector('button[name="apply"]');
+        
+        if (form && submitButton) {
+            form.addEventListener('submit', function(e) {
+                // Проверяем, что хотя бы один чекбокс выбран
+                const checkedBoxes = document.querySelectorAll('input[name="import_types"]:checked');
+                if (checkedBoxes.length === 0) {
+                    e.preventDefault();
+                    alert('⚠️ Выберите хотя бы один тип данных для импорта');
+                    return false;
+                }
+                
+                // Блокируем кнопку после первого клика
+                submitButton.disabled = true;
+                submitButton.textContent = '⏳ Запуск импорта...';
+                
+                // На случай если форма не отправится, разблокируем через 5 секунд
+                setTimeout(function() {
+                    submitButton.disabled = false;
+                    submitButton.textContent = '▶️ Запустить импорт';
+                }, 5000);
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="import-selection-form">
+    <h2>🚀 Выбор типов данных для импорта из 1С</h2>
+
+    <div class="info-box">
+        <strong>ℹ️ Информация:</strong>
+        Выберите типы данных, которые необходимо импортировать из 1С.
+        Импорт будет выполнен последовательно в указанном порядке.
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="checkbox-group">
+            <div class="checkbox-item">
+                <label>
+                    <input type="checkbox" name="import_types" value="catalog" checked>
+                    <div class="checkbox-label">
+                        <strong>📦 Каталог товаров</strong>
+                        <span class="checkbox-hint">Импорт товаров, категорий, брендов и характеристик</span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="checkbox-item">
+                <label>
+                    <input type="checkbox" name="import_types" value="stocks">
+                    <div class="checkbox-label">
+                        <strong>📊 Остатки товаров</strong>
+                        <span class="checkbox-hint">Обновление количества товаров на складах (требует наличия каталога в БД)</span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="checkbox-item">
+                <label>
+                    <input type="checkbox" name="import_types" value="prices">
+                    <div class="checkbox-label">
+                        <strong>💰 Цены товаров</strong>
+                        <span class="checkbox-hint">Обновление цен для всех уровней пользователей (требует наличия каталога в БД)</span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="checkbox-item">
+                <label>
+                    <input type="checkbox" name="import_types" value="customers">
+                    <div class="checkbox-label">
+                        <strong>👥 Клиенты</strong>
+                        <span class="checkbox-hint">Импорт данных клиентов и их организаций из 1С</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <input type="hidden" name="action" value="trigger_selective_import">
+            <input type="hidden" name="_selected_action" value="0">
+            <button type="submit" name="apply" class="btn-primary">
+                ▶️ Запустить импорт
+            </button>
+            <a href="{% url 'admin:integrations_session_changelist' %}" class="btn-secondary">
+                ❌ Отмена
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
