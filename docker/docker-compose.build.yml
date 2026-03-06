@@ -1,0 +1,13 @@
+# Этот файл используется ИСКЛЮЧИТЕЛЬНО для сборки образов на сервере
+services:
+  backend:
+    image: freesport-backend:latest
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+
+  frontend:
+    image: freesport-frontend:latest
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile

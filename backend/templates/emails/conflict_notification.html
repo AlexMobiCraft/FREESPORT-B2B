@@ -1,0 +1,148 @@
+{% load dict_filters %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конфликт синхронизации 1С</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #f4f4f4;
+            padding: 20px;
+            border-left: 4px solid #ff6b6b;
+        }
+        .header h2 {
+            margin: 0;
+            color: #d63031;
+        }
+        .info-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .info-section p {
+            margin: 5px 0;
+        }
+        .info-section strong {
+            color: #2d3436;
+        }
+        .conflicts-list {
+            margin: 20px 0;
+        }
+        .conflict-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .conflict-item strong {
+            display: block;
+            color: #0984e3;
+            margin-bottom: 5px;
+        }
+        .value-change {
+            margin: 5px 0;
+            padding: 5px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .old-value {
+            color: #d63031;
+            text-decoration: line-through;
+        }
+        .new-value {
+            color: #00b894;
+            font-weight: bold;
+        }
+        .resolution-info {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #dfe6e9;
+            border-left: 4px solid #0984e3;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #636e72;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>⚠️ Конфликт синхронизации с 1С</h2>
+    </div>
+    
+    <div class="info-section">
+        <p><strong>Тип конфликта:</strong> 
+            {% if conflict_source == 'portal_registration' %}
+                Регистрация на портале
+            {% else %}
+                Импорт данных из 1С
+            {% endif %}
+        </p>
+        <p><strong>Дата и время:</strong> {{ timestamp|date:"d.m.Y H:i:s" }}</p>
+    </div>
+    
+    <div class="info-section">
+        <h3>Информация о клиенте</h3>
+        <p><strong>Email:</strong> {{ customer.email }}</p>
+        <p><strong>Имя:</strong> {{ customer.first_name }} {{ customer.last_name }}</p>
+        {% if customer.company_name %}
+            <p><strong>Компания:</strong> {{ customer.company_name }}</p>
+        {% endif %}
+        {% if customer.tax_id %}
+            <p><strong>ИНН:</strong> {{ customer.tax_id }}</p>
+        {% endif %}
+        <p><strong>ID в 1С:</strong> {{ customer.onec_id|default:"не назначен" }}</p>
+    </div>
+    
+    {% if conflicting_fields %}
+    <div class="conflicts-list">
+        <h3>Конфликтующие поля ({{ conflicting_fields|length }})</h3>
+        {% for field in conflicting_fields %}
+            <div class="conflict-item">
+                <strong>{{ field }}</strong>
+                <div class="value-change">
+                    <span class="old-value">Было: {{ platform_data|get_item:field|default:"(пусто)" }}</span>
+                    <br>
+                    <span class="new-value">Стало: {{ onec_data|get_item:field|default:"(пусто)" }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="info-section">
+        <p><em>Конфликтующих полей не обнаружено. Профиль обогащён идентификаторами 1С.</em></p>
+    </div>
+    {% endif %}
+    
+    <div class="resolution-info">
+        <h3>Разрешение конфликта</h3>
+        <p><strong>Стратегия:</strong> {{ resolution }} (данные из 1С имеют приоритет)</p>
+        <p>
+            {% if conflict_source == 'portal_registration' %}
+                Клиент из 1С верифицирован на портале. Данные НЕ изменены.
+            {% else %}
+                Данные клиента обновлены из 1С. Профиль обогащён идентификаторами onec_id/onec_guid.
+            {% endif %}
+        </p>
+    </div>
+    
+    <div class="footer">
+        <p><em>Это автоматическое уведомление от системы синхронизации FREESPORT с 1С.</em></p>
+        <p>Детали операции доступны в административной панели Django в разделах SyncConflict и CustomerSyncLog.</p>
+    </div>
+</body>
+</html>

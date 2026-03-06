@@ -1,0 +1,114 @@
+/**
+ * Auto-refresh механизм для мониторинга импортов
+ *
+ * Автоматически перезагружает страницу каждые 10 секунд,
+ * если обнаружена хотя бы одна сессия импорта в статусе "in_progress".
+ *
+ * Это позволяет админу видеть обновление прогресса в реальном времени
+ * без необходимости вручную обновлять страницу.
+ */
+(function () {
+  "use strict";
+
+  /**
+   * Проверяет наличие активных (running) импортов на странице
+   * @returns {boolean} true если найден хотя бы один running импорт
+   */
+  function hasRunningImports() {
+    // Ищем все ячейки со статусом (colored_status)
+    const statusCells = document.querySelectorAll("td.field-colored_status");
+
+    for (const cell of statusCells) {
+      const cellText = cell.textContent || cell.innerText || "";
+
+      // Проверяем наличие иконки "в процессе" или текста "in_progress"
+      if (
+        cellText.includes("⏳") ||
+        cellText.toLowerCase().includes("в процессе") ||
+        cellText.toLowerCase().includes("in_progress")
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Инициализирует auto-refresh если есть активные импорты
+   */
+  function initAutoRefresh() {
+    if (hasRunningImports()) {
+      console.log(
+        "[ImportSession] Обнаружен активный импорт. Auto-refresh через 10 секунд..."
+      );
+
+      // Показываем индикатор автообновления (опционально)
+      showAutoRefreshIndicator();
+
+      // Планируем reload через 10 секунд
+      setTimeout(function () {
+        console.log(
+          "[ImportSession] Перезагрузка страницы для обновления статуса..."
+        );
+        location.reload();
+      }, 10000); // 10 секунд
+    } else {
+      console.log(
+        "[ImportSession] Активных импортов не обнаружено. Auto-refresh отключен."
+      );
+    }
+  }
+
+  /**
+   * Показывает индикатор автообновления в правом верхнем углу
+   */
+  function showAutoRefreshIndicator() {
+    // Создаем индикатор, если его еще нет
+    let indicator = document.getElementById("auto-refresh-indicator");
+
+    if (!indicator) {
+      indicator = document.createElement("div");
+      indicator.id = "auto-refresh-indicator";
+      indicator.innerHTML = "⏳ Автообновление через 10 сек...";
+      indicator.style.cssText = `
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        background-color: #ffc107;
+        color: #000;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        z-index: 9999;
+        animation: pulse 2s infinite;
+      `;
+
+      // Добавляем CSS анимацию
+      const style = document.createElement("style");
+      style.textContent = `
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.7;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+
+      document.body.appendChild(indicator);
+    }
+  }
+
+  // Запускаем проверку после полной загрузки DOM
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAutoRefresh);
+  } else {
+    // DOM уже загружен
+    initAutoRefresh();
+  }
+})();

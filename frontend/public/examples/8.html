@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FREESPORT | Категории</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Roboto:ital,wght@0,400;0,700;1,900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #ff6b00;
+        --dark: #0a0a0a;
+        --darker: #000000;
+        --light: #ffffff;
+        --gray: #f4f4f4;
+        --gray-text: #a0a0a0;
+        --trans: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--darker);
+        color: var(--light);
+        font-family: 'Inter', sans-serif;
+        overflow-x: hidden;
+      }
+
+      /* --- Header & Logo --- */
+      header {
+        padding: 20px 40px;
+        background: var(--dark);
+        border-bottom: 2px solid var(--primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+      }
+
+      .brand-logo {
+        font-family: 'Roboto', sans-serif;
+        font-weight: 900;
+        font-style: italic;
+        font-size: 2rem;
+        color: var(--primary);
+        text-transform: uppercase;
+        letter-spacing: -1px;
+        text-decoration: none;
+      }
+
+      .nav-actions span {
+        margin-left: 20px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: var(--trans);
+      }
+
+      .nav-actions span:hover {
+        color: var(--primary);
+      }
+
+      /* --- Layout Containers --- */
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
+
+      .section-title {
+        font-family: 'Roboto', sans-serif;
+        font-size: 2.5rem;
+        text-transform: uppercase;
+        font-style: italic;
+        margin-bottom: 30px;
+        border-left: 5px solid var(--primary);
+        padding-left: 15px;
+        line-height: 1;
+      }
+
+      /* --- CATEGORY GRID --- */
+      .category-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2px;
+        /* Thin lines effect */
+        background-color: #222;
+        /* Gap color */
+        border: 1px solid #222;
+      }
+
+      .cat-card {
+        position: relative;
+        height: 300px;
+        background-color: var(--dark);
+        overflow: hidden;
+        cursor: pointer;
+        group: cat-group;
+      }
+
+      .cat-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.6s ease;
+        filter: grayscale(100%) contrast(1.2);
+        opacity: 0.7;
+      }
+
+      .cat-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(0deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0) 60%);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 25px;
+        z-index: 2;
+      }
+
+      .cat-title {
+        font-family: 'Roboto', sans-serif;
+        font-size: 1.8rem;
+        font-weight: 900;
+        font-style: italic;
+        text-transform: uppercase;
+        transform: skew(-5deg);
+        margin-bottom: 10px;
+        position: relative;
+        display: inline-block;
+      }
+
+      .cat-btn {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--primary);
+        text-transform: uppercase;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: var(--trans);
+      }
+
+      /* Category Hover Effects */
+      .cat-card:hover img {
+        transform: scale(1.1);
+        filter: grayscale(0%) contrast(1.1);
+        opacity: 1;
+      }
+
+      .cat-card:hover .cat-title {
+        color: var(--primary);
+      }
+
+      .cat-card:hover .cat-btn {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Decorative Tech Lines */
+      .cat-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 30px;
+        height: 30px;
+        border-top: 2px solid var(--primary);
+        border-right: 2px solid var(--primary);
+        opacity: 0;
+        transition: var(--trans);
+      }
+
+      .cat-card:hover::after {
+        opacity: 1;
+      }
+
+      /* --- FEATURED PRODUCTS (Interactive Elements) --- */
+      .products-section {
+        margin-top: 60px;
+      }
+
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+      }
+
+      .product-card {
+        background: #111;
+        border: 1px solid #333;
+        padding: 15px;
+        transition: var(--trans);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .product-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(255, 107, 0, 0.1);
+      }
+
+      .prod-img-wrap {
+        height: 200px;
+        width: 100%;
+        background: #222;
+        margin-bottom: 15px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .prod-img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: var(--primary);
+        color: #fff;
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        font-style: italic;
+      }
+
+      .prod-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #fff;
+      }
+
+      .prod-category {
+        font-size: 0.8rem;
+        color: var(--gray-text);
+        margin-bottom: 10px;
+      }
+
+      .prod-footer {
+        margin-top: auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .price {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .btn-buy {
+        background: transparent;
+        border: 1px solid var(--primary);
+        color: var(--primary);
+        padding: 8px 16px;
+        cursor: pointer;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-style: italic;
+        transition: var(--trans);
+      }
+
+      .btn-buy:hover {
+        background: var(--primary);
+        color: #000;
+        box-shadow: 0 0 10px var(--primary);
+      }
+
+      /* Mobile Adjustments */
+      @media (max-width: 768px) {
+        .section-title {
+          font-size: 1.8rem;
+        }
+
+        .cat-card {
+          height: 200px;
+        }
+
+        .cat-title {
+          font-size: 1.4rem;
+        }
+
+        .header {
+          padding: 15px 20px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="#" class="brand-logo">
+        <img src="/Freesport_logo.svg" alt="FREESPORT" style="height: 40px; display: block" />
+      </a>
+      <nav class="nav-actions">
+        <span>ПОИСК</span>
+        <span>КОРЗИНА (0)</span>
+      </nav>
+    </header>
+
+    <div class="container">
+      <!-- Main Category Menu -->
+      <h2 class="section-title">Выберите Направление</h2>
+
+      <section class="category-grid">
+        <!-- 1. Фитнес и атлетика -->
+        <article class="cat-card">
+          <img
+            src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
+            alt="Фитнес"
+          />
+          <div class="cat-overlay">
+            <h3 class="cat-title">Фитнес и атлетика</h3>
+            <span class="cat-btn">Перейти в каталог →</span>
+          </div>
+        </article>
+
+        <!-- 2. Спортивные игры -->
+        <article class="cat-card">
+          <img
+            src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1636&auto=format&fit=crop"
+            alt="Игры"
+          />
+          <div class="cat-overlay">
+            <h3 class="cat-title">Спортивные игры</h3>
+            <span class="cat-btn">Перейти в каталог →</span>
+          </div>
+        </article>
+
+        <!-- 3. Единоборства -->
+        <article class="cat-card">
+          <img
+            src="https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=1469&auto=format&fit=crop"
+            alt="Единоборства"
+          />
+          <div class="cat-overlay">
+            <h3 class="cat-title">Единоборства</h3>
+            <span class="cat-btn">Перейти в каталог →</span>
+          </div>
+        </article>
+
+        <!-- 4. Плавание -->
+        <article class="cat-card">
+          <img
+            src="https://images.unsplash.com/photo-1530549387789-4c1017266635?q=80&w=1470&auto=format&fit=crop"
+            alt="Плавание"
+          />
+          <div class="cat-overlay">
+            <h3 class="cat-title">Плавание</h3>
+            <span class="cat-btn">Перейти в каталог →</span>
+          </div>
+        </article>
+
+        <!-- 5. Гимнастика и танцы -->
+        <article class="cat-card">
+          <img
+            src="https://images.unsplash.com/photo-1518609878373-06d740f60d8b?q=80&w=1470&auto=format&fit=crop"
+            alt="Гимнастика"
+          />
+          <div class="cat-overlay">
+            <h3 class="cat-title">Гимнастика и танцы</h3>
+            <span class="cat-btn">Перейти в каталог →</span>
+          </div>
+        </article>
+
+        <!-- 6. Одежда спортивная -->
+        <article class="cat-card">
+          <img
+            src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1372&auto=format&fit=crop"
+            alt="Одежда"
+          />
+          <div class="cat-overlay">
+            <h3 class="cat-title">Одежда спортивная</h3>
+            <span class="cat-btn">Перейти в каталог →</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- Featured Products Section (Demonstrating interactive purchase UI) -->
+      <div class="products-section">
+        <h2 class="section-title">Хиты Продаж</h2>
+        <div class="product-grid">
+          <!-- Product 1 -->
+          <div class="product-card">
+            <div class="prod-img-wrap">
+              <span class="badge">NEW</span>
+              <img
+                src="https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?q=80&w=1471&auto=format&fit=crop"
+                alt="Гантели"
+              />
+            </div>
+            <div class="prod-category">Фитнес</div>
+            <h4 class="prod-title">Набор гантелей PRO-Series</h4>
+            <div class="prod-footer">
+              <span class="price">4 500 ₽</span>
+              <button class="btn-buy">В корзину</button>
+            </div>
+          </div>
+
+          <!-- Product 2 -->
+          <div class="product-card">
+            <div class="prod-img-wrap">
+              <img
+                src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1470&auto=format&fit=crop"
+                alt="Кроссовки"
+              />
+            </div>
+            <div class="prod-category">Одежда</div>
+            <h4 class="prod-title">Беговые кроссовки Speed X</h4>
+            <div class="prod-footer">
+              <span class="price">12 990 ₽</span>
+              <button class="btn-buy">Купить</button>
+            </div>
+          </div>
+
+          <!-- Product 3 -->
+          <div class="product-card">
+            <div class="prod-img-wrap">
+              <span class="badge">-15%</span>
+              <img
+                src="https://images.unsplash.com/photo-1552674605-469523170d8e?q=80&w=1374&auto=format&fit=crop"
+                alt="Коврик"
+              />
+            </div>
+            <div class="prod-category">Гимнастика</div>
+            <h4 class="prod-title">Коврик для йоги TechMat</h4>
+            <div class="prod-footer">
+              <span class="price">1 200 ₽</span>
+              <button class="btn-buy">В корзину</button>
+            </div>
+          </div>
+
+          <!-- Product 4 -->
+          <div class="product-card">
+            <div class="prod-img-wrap">
+              <img
+                src="https://images.unsplash.com/photo-1628779238951-be2c9f2a0758?q=80&w=1374&auto=format&fit=crop"
+                alt="Мяч"
+              />
+            </div>
+            <div class="prod-category">Игры</div>
+            <h4 class="prod-title">Мяч баскетбольный Street</h4>
+            <div class="prod-footer">
+              <span class="price">2 800 ₽</span>
+              <button class="btn-buy">Купить</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

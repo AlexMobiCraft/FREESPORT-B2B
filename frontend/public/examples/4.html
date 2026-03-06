@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FREESPORT | Коллекция для бега</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto:ital,wght@0,400;0,700;1,900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #ff6b00;
+        --primary-hover: #ff8533;
+        --bg-dark: #0a0a0a;
+        --card-bg: #141414;
+        --text-main: #ffffff;
+        --text-secondary: #a0a0a0;
+        --border: #333333;
+        --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-main);
+        line-height: 1.5;
+        background-image:
+          linear-gradient(
+            45deg,
+            #0f0f0f 25%,
+            transparent 25%,
+            transparent 75%,
+            #0f0f0f 75%,
+            #0f0f0f
+          ),
+          linear-gradient(
+            45deg,
+            #0f0f0f 25%,
+            transparent 25%,
+            transparent 75%,
+            #0f0f0f 75%,
+            #0f0f0f
+          );
+        background-size: 20px 20px;
+        background-position:
+          0 0,
+          10px 10px;
+      }
+
+      /* HEADER */
+      .header {
+        background: rgba(10, 10, 10, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem 2rem;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        border-bottom: 2px solid var(--primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 30px rgba(255, 107, 0, 0.1);
+      }
+
+      .logo {
+        font-family: 'Roboto', sans-serif;
+        font-weight: 900;
+        font-style: italic;
+        font-size: 2rem;
+        color: var(--primary);
+        letter-spacing: -1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        text-shadow: 0 0 10px rgba(255, 107, 0, 0.4);
+      }
+
+      .cart-icon {
+        position: relative;
+        cursor: pointer;
+      }
+
+      .cart-count {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: bold;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* MAIN LAYOUT */
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 3rem 1.5rem;
+      }
+
+      .section-title {
+        font-family: 'Roboto', sans-serif;
+        font-size: 2.5rem;
+        font-weight: 700;
+        font-style: italic;
+        text-transform: uppercase;
+        margin-bottom: 2.5rem;
+        position: relative;
+        display: inline-block;
+      }
+
+      .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: -5px;
+        left: 0;
+        width: 60%;
+        height: 4px;
+        background: var(--primary);
+        transform: skewX(-20deg);
+      }
+
+      /* GRID */
+      .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+      }
+
+      /* CARD COMPONENT */
+      .product-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+        transition: var(--transition);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .product-card:hover {
+        transform: translateY(-8px);
+        border-color: var(--primary);
+        box-shadow: 0 10px 30px rgba(255, 107, 0, 0.15);
+      }
+
+      /* Tech decorative corners */
+      .product-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(45deg, transparent 50%, var(--primary) 50%);
+        opacity: 0;
+        transition: var(--transition);
+        z-index: 2;
+      }
+
+      .product-card:hover::before {
+        opacity: 1;
+      }
+
+      .image-wrapper {
+        position: relative;
+        height: 300px;
+        overflow: hidden;
+        background: radial-gradient(circle at center, #2a2a2a 0%, #141414 100%);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .product-image {
+        width: 100%;
+        height: auto;
+        max-height: 100%;
+        object-fit: contain;
+        transition: var(--transition);
+        filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.5));
+      }
+
+      .product-card:hover .product-image {
+        transform: scale(1.1) rotate(-3deg);
+      }
+
+      .badge {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        border-left: 3px solid var(--primary);
+        backdrop-filter: blur(4px);
+        z-index: 3;
+      }
+
+      .badge.hot {
+        border-color: #ff3333;
+        color: #ff3333;
+      }
+
+      .product-info {
+        padding: 1.5rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        border-top: 1px solid var(--border);
+      }
+
+      .product-category {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+        letter-spacing: 1px;
+      }
+
+      .product-title {
+        font-family: 'Roboto', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        font-style: italic;
+        margin-bottom: 0.75rem;
+        color: #fff;
+      }
+
+      .specs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+      }
+
+      .spec-tag {
+        font-size: 0.7rem;
+        background: #222;
+        color: #aaa;
+        padding: 2px 6px;
+        border: 1px solid #333;
+        border-radius: 2px;
+      }
+
+      .price-row {
+        margin-top: auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 1.5rem;
+      }
+
+      .price {
+        font-family: 'Roboto', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+      }
+
+      .old-price {
+        font-size: 0.9rem;
+        text-decoration: line-through;
+        color: #666;
+        margin-left: 0.5rem;
+      }
+
+      /* BUTTONS */
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .btn {
+        padding: 0.8rem 1rem;
+        border: none;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: var(--transition);
+        clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%, 0 20%);
+      }
+
+      .btn-cart {
+        background: transparent;
+        border: 1px solid #444;
+        color: #fff;
+      }
+
+      .btn-cart:hover {
+        border-color: #fff;
+        background: #222;
+      }
+
+      .btn-buy {
+        background: var(--primary);
+        color: #000;
+        font-weight: 800;
+        font-style: italic;
+      }
+
+      .btn-buy:hover {
+        background: var(--primary-hover);
+        box-shadow: 0 0 15px rgba(255, 107, 0, 0.4);
+      }
+
+      @media (max-width: 600px) {
+        .header {
+          padding: 1rem;
+        }
+
+        .section-title {
+          font-size: 1.8rem;
+        }
+
+        .actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="header">
+      <a href="#" class="logo">
+        <img src="/Freesport_logo.svg" alt="FREESPORT" style="height: 40px; display: block" />
+      </a>
+      <div class="cart-icon">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="white"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="9" cy="21" r="1"></circle>
+          <circle cx="20" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+        <span class="cart-count">3</span>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="section-title">Скорость нового поколения</h1>
+
+      <div class="products-grid">
+        <!-- Product 1 -->
+        <article class="product-card">
+          <div class="badge hot">ХИТ ПРОДАЖ</div>
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Nike Red"
+              class="product-image"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Мужские / Бег</div>
+            <h3 class="product-title">HyperSpeed Red V2</h3>
+            <div class="specs">
+              <span class="spec-tag">УГЛЕРОД</span>
+              <span class="spec-tag">ВЕС: 210Г</span>
+              <span class="spec-tag">ШОССЕ</span>
+            </div>
+            <div class="price-row">
+              <div class="price">14 990 ₽</div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-cart">В корзину</button>
+              <button class="btn btn-buy">Купить сейчас</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Product 2 -->
+        <article class="product-card">
+          <div class="badge">НОВИНКА</div>
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Green Runner"
+              class="product-image"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Унисекс / Трейл</div>
+            <h3 class="product-title">Forest Trail X-Pro</h3>
+            <div class="specs">
+              <span class="spec-tag">GORE-TEX</span>
+              <span class="spec-tag">СЦЕПЛЕНИЕ</span>
+              <span class="spec-tag">ВЕС: 280Г</span>
+            </div>
+            <div class="price-row">
+              <div class="price">18 500 ₽</div>
+              <div class="old-price">21 000 ₽</div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-cart">В корзину</button>
+              <button class="btn btn-buy">Купить сейчас</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Product 3 -->
+        <article class="product-card">
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1551107696-a4b0c5a0d9a2?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Urban Fly"
+              class="product-image"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Мужские / Город</div>
+            <h3 class="product-title">Urban Fly Knit 3.0</h3>
+            <div class="specs">
+              <span class="spec-tag">ДЫШАЩИЕ</span>
+              <span class="spec-tag">КОМФОРТ</span>
+              <span class="spec-tag">EVA ПЕНА</span>
+            </div>
+            <div class="price-row">
+              <div class="price">9 990 ₽</div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-cart">В корзину</button>
+              <button class="btn btn-buy">Купить сейчас</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Product 4 -->
+        <article class="product-card">
+          <div class="badge hot">-30%</div>
+          <div class="image-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&q=80&w=500"
+              alt="Кроссовки Black Phantom"
+              class="product-image"
+            />
+          </div>
+          <div class="product-info">
+            <div class="product-category">Женские / Марафон</div>
+            <h3 class="product-title">Phantom Elite Z</h3>
+            <div class="specs">
+              <span class="spec-tag">АМОРТИЗАЦИЯ</span>
+              <span class="spec-tag">ПРОФИ</span>
+            </div>
+            <div class="price-row">
+              <div class="price">22 490 ₽</div>
+              <div class="old-price">32 000 ₽</div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-cart">В корзину</button>
+              <button class="btn btn-buy">Купить сейчас</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </main>
+  </body>
+</html>
