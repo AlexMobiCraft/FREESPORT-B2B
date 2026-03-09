@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Интернет-магазин FREESPORT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #ff6b00;
+        --primary-hover: #e55e00;
+        --bg: #0a0a0a;
+        --surface: #141414;
+        --text-main: #ffffff;
+        --text-sec: #a0a0a0;
+        --border: #333333;
+        --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg);
+        color: var(--text-main);
+        line-height: 1.5;
+        overflow-x: hidden;
+      }
+
+      a {
+        text-decoration: none;
+        color: inherit;
+        transition: var(--transition);
+      }
+
+      ul {
+        list-style: none;
+      }
+
+      img {
+        max-width: 100%;
+        display: block;
+      }
+
+      /* --- UTILITY CLASSES --- */
+      .container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 14px 32px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: var(--transition);
+        border: none;
+        font-size: 14px;
+      }
+
+      .btn-primary {
+        background-color: var(--primary);
+        color: #fff;
+        clip-path: polygon(
+          10px 0,
+          100% 0,
+          100% calc(100% - 10px),
+          calc(100% - 10px) 100%,
+          0 100%,
+          0 10px
+        );
+      }
+
+      .btn-primary:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+      }
+
+      .btn-outline {
+        background: transparent;
+        border: 2px solid var(--text-main);
+        color: var(--text-main);
+      }
+
+      .btn-outline:hover {
+        background: var(--text-main);
+        color: var(--bg);
+      }
+
+      /* --- HEADER --- */
+      header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+        background-color: rgba(10, 10, 10, 0.9);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .nav-wrapper {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 80px;
+      }
+
+      .logo {
+        font-size: 28px;
+        font-weight: 900;
+        font-style: italic;
+        color: var(--primary);
+        letter-spacing: -1px;
+        text-transform: uppercase;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 40px;
+      }
+
+      .nav-links a {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 14px;
+        letter-spacing: 0.5px;
+      }
+
+      .nav-links a:hover {
+        color: var(--primary);
+      }
+
+      .nav-icons {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+
+      .icon-cart {
+        position: relative;
+        cursor: pointer;
+      }
+
+      .cart-count {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: var(--primary);
+        color: white;
+        font-size: 10px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+      }
+
+      /* --- HERO SECTION --- */
+      .hero {
+        height: 90vh;
+        display: flex;
+        align-items: center;
+        position: relative;
+        margin-top: 80px;
+        overflow: hidden;
+      }
+
+      .hero-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background:
+          linear-gradient(90deg, #000000 0%, rgba(0, 0, 0, 0.4) 100%),
+          url('https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=2070&auto=format&fit=crop')
+            no-repeat center/cover;
+        z-index: -1;
+      }
+
+      .hero-content {
+        max-width: 600px;
+      }
+
+      .hero-tag {
+        color: var(--primary);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 20px;
+        display: block;
+      }
+
+      .hero h1 {
+        font-size: 64px;
+        font-weight: 900;
+        line-height: 1.1;
+        margin-bottom: 30px;
+        text-transform: uppercase;
+        font-style: italic;
+      }
+
+      .hero p {
+        font-size: 18px;
+        color: #ccc;
+        margin-bottom: 40px;
+        max-width: 480px;
+      }
+
+      /* --- CATEGORIES --- */
+      .section-title {
+        font-size: 36px;
+        font-weight: 800;
+        text-transform: uppercase;
+        margin-bottom: 40px;
+        position: relative;
+        display: inline-block;
+        font-style: italic;
+      }
+
+      .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 5px;
+        right: -60px;
+        width: 40px;
+        height: 4px;
+        background: var(--primary);
+        transform: skew(-20deg);
+      }
+
+      .categories {
+        padding: 100px 0;
+      }
+
+      .cat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+      }
+
+      .cat-card {
+        position: relative;
+        height: 400px;
+        overflow: hidden;
+        group: cursor;
+      }
+
+      .cat-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.6s ease;
+      }
+
+      .cat-card:hover img {
+        transform: scale(1.05);
+      }
+
+      .cat-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 30px;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+      }
+
+      .cat-title {
+        font-size: 24px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      /* --- PRODUCTS --- */
+      .products {
+        padding: 0 0 100px 0;
+      }
+
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 30px;
+      }
+
+      .product-card {
+        background-color: var(--surface);
+        transition: var(--transition);
+        border: 1px solid transparent;
+      }
+
+      .product-card:hover {
+        border-color: var(--border);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+
+      .product-image-wrapper {
+        position: relative;
+        height: 320px;
+        overflow: hidden;
+        background: #fff;
+        /* White bg for product visibility */
+      }
+
+      .product-image-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+      }
+
+      .product-card:hover .product-image-wrapper img {
+        transform: scale(1.08);
+      }
+
+      .product-badge {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: var(--primary);
+        color: #fff;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .product-info {
+        padding: 20px;
+      }
+
+      .product-cat {
+        font-size: 12px;
+        color: var(--text-sec);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        display: block;
+      }
+
+      .product-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        line-height: 1.3;
+      }
+
+      .product-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+      }
+
+      .price {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--primary);
+      }
+
+      .btn-add {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-main);
+        padding: 8px 16px;
+        font-size: 12px;
+        text-transform: uppercase;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+      }
+
+      .btn-add:hover {
+        background: var(--text-main);
+        color: var(--bg);
+        border-color: var(--text-main);
+      }
+
+      /* --- FOOTER --- */
+      footer {
+        background-color: #050505;
+        padding: 80px 0 40px 0;
+        border-top: 1px solid var(--border);
+      }
+
+      .footer-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr 1fr;
+        gap: 40px;
+        margin-bottom: 60px;
+      }
+
+      .footer-col h4 {
+        font-size: 16px;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 24px;
+        color: var(--primary);
+      }
+
+      .footer-col ul li {
+        margin-bottom: 12px;
+      }
+
+      .footer-col ul li a {
+        color: var(--text-sec);
+        font-size: 14px;
+      }
+
+      .footer-col ul li a:hover {
+        color: var(--text-main);
+        padding-left: 5px;
+      }
+
+      .newsletter-form {
+        display: flex;
+        margin-top: 20px;
+      }
+
+      .newsletter-form input {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 12px;
+        color: white;
+        flex-grow: 1;
+        font-family: inherit;
+      }
+
+      .newsletter-form button {
+        background: var(--primary);
+        border: none;
+        color: white;
+        padding: 0 20px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .copyright {
+        text-align: center;
+        color: var(--text-sec);
+        font-size: 12px;
+        padding-top: 40px;
+        border-top: 1px solid #1a1a1a;
+      }
+
+      /* Responsive */
+      @media (max-width: 900px) {
+        .hero h1 {
+          font-size: 42px;
+        }
+
+        .nav-links {
+          display: none;
+        }
+
+        /* Simplified for mobile demo */
+        .footer-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .footer-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero h1 {
+          font-size: 32px;
+        }
+
+        .nav-wrapper {
+          height: 60px;
+        }
+
+        .hero {
+          margin-top: 60px;
+          height: 80vh;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Header -->
+    <header>
+      <div class="container">
+        <nav class="nav-wrapper">
+          <a href="#" class="logo">
+            <img src="/Freesport_logo.svg" alt="FREESPORT" style="height: 40px; display: block" />
+          </a>
+
+          <div class="nav-links">
+            <a href="#">Новинки</a>
+            <a href="#">Мужчинам</a>
+            <a href="#">Женщинам</a>
+            <a href="#">Инвентарь</a>
+            <a href="#" style="color: var(--primary)">Sale %</a>
+          </div>
+
+          <div class="nav-icons">
+            <a href="#">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </a>
+            <div class="icon-cart">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+              </svg>
+              <span class="cart-count">2</span>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-bg"></div>
+      <div class="container">
+        <div class="hero-content">
+          <span class="hero-tag">Новая Коллекция 2024</span>
+          <h1>Преодолей<br />Границы<br />Возможного</h1>
+          <p>
+            Профессиональная экипировка для тех, кто не ищет легких путей. Создана атлетами для
+            атлетов.
+          </p>
+          <div style="display: flex; gap: 20px">
+            <button class="btn btn-primary">Купить Сейчас</button>
+            <button class="btn btn-outline">Смотреть Каталог</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Categories -->
+    <section class="categories">
+      <div class="container">
+        <h2 class="section-title">Категории</h2>
+        <div class="cat-grid">
+          <a href="#" class="cat-card">
+            <img
+              src="https://images.unsplash.com/photo-1517466787929-bc90951d6dbb?q=80&w=1000&auto=format&fit=crop"
+              alt="Тренировки"
+            />
+            <div class="cat-overlay">
+              <h3 class="cat-title">Кроссфит</h3>
+            </div>
+          </a>
+          <a href="#" class="cat-card">
+            <img
+              src="https://images.unsplash.com/photo-1556817411-31ae72fa3ea0?q=80&w=1000&auto=format&fit=crop"
+              alt="Бег"
+            />
+            <div class="cat-overlay">
+              <h3 class="cat-title">Бег</h3>
+            </div>
+          </a>
+          <a href="#" class="cat-card">
+            <img
+              src="https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=1000&auto=format&fit=crop"
+              alt="Инвентарь"
+            />
+            <div class="cat-overlay">
+              <h3 class="cat-title">Железо</h3>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Popular Products -->
+    <section class="products">
+      <div class="container">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 40px;
+          "
+        >
+          <h2 class="section-title" style="margin-bottom: 0">Хиты Продаж</h2>
+          <a
+            href="#"
+            style="
+              border-bottom: 1px solid var(--primary);
+              padding-bottom: 2px;
+              font-size: 14px;
+              font-weight: 600;
+            "
+            >Все товары &rarr;</a
+          >
+        </div>
+
+        <div class="product-grid">
+          <!-- Product 1 -->
+          <div class="product-card">
+            <div class="product-image-wrapper">
+              <span class="product-badge">Top</span>
+              <img
+                src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?q=80&w=800&auto=format&fit=crop"
+                alt="Кроссовки"
+              />
+            </div>
+            <div class="product-info">
+              <span class="product-cat">Обувь</span>
+              <h3 class="product-title">Nike Air Zoom Pulse Green</h3>
+              <div class="product-footer">
+                <span class="price">14 990 ₽</span>
+                <button class="btn-add">В корзину</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product 2 -->
+          <div class="product-card">
+            <div class="product-image-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?q=80&w=800&auto=format&fit=crop"
+                alt="Гантели"
+              />
+            </div>
+            <div class="product-info">
+              <span class="product-cat">Инвентарь</span>
+              <h3 class="product-title">Набор гантелей Hex Pro 15кг</h3>
+              <div class="product-footer">
+                <span class="price">8 500 ₽</span>
+                <button class="btn-add">В корзину</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product 3 -->
+          <div class="product-card">
+            <div class="product-image-wrapper">
+              <span class="product-badge" style="background: #e74c3c">Sale</span>
+              <img
+                src="https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop"
+                alt="Футболка"
+              />
+            </div>
+            <div class="product-info">
+              <span class="product-cat">Одежда</span>
+              <h3 class="product-title">Компрессионный рашгард Elite</h3>
+              <div class="product-footer">
+                <span class="price" style="color: #e74c3c">3 200 ₽</span>
+                <button class="btn-add">В корзину</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product 4 -->
+          <div class="product-card">
+            <div class="product-image-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1591191853823-9529d443e26f?q=80&w=800&auto=format&fit=crop"
+                alt="Коврик"
+              />
+            </div>
+            <div class="product-info">
+              <span class="product-cat">Аксессуары</span>
+              <h3 class="product-title">Мат для йоги и фитнеса Pro Black</h3>
+              <div class="product-footer">
+                <span class="price">2 900 ₽</span>
+                <button class="btn-add">В корзину</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <a href="#" class="logo" style="display: block; margin-bottom: 20px">FREESPORT</a>
+            <p style="color: var(--text-sec); font-size: 14px; margin-bottom: 20px">
+              Ваш надежный партнер в мире спорта. Качество, проверенное временем и профессионалами.
+            </p>
+            <div class="newsletter-form">
+              <input type="email" placeholder="Ваш Email" />
+              <button>&rarr;</button>
+            </div>
+          </div>
+          <div class="footer-col">
+            <h4>Покупателям</h4>
+            <ul>
+              <li><a href="#">Доставка и оплата</a></li>
+              <li><a href="#">Возврат товара</a></li>
+              <li><a href="#">Таблица размеров</a></li>
+              <li><a href="#">Статус заказа</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Компания</h4>
+            <ul>
+              <li><a href="#">О нас</a></li>
+              <li><a href="#">Магазины</a></li>
+              <li><a href="#">Вакансии</a></li>
+              <li><a href="#">Контакты</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Контакты</h4>
+            <ul>
+              <li><a href="#">8 (800) 555-35-35</a></li>
+              <li><a href="#">support@freesport.ru</a></li>
+              <li><a href="#">Москва, ул. Спортивная 12</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="copyright">
+          &copy; 2024 FREESPORT. Все права защищены. Дизайн: Athletic Minimalism.
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

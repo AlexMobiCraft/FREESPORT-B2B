@@ -1,0 +1,7 @@
+.next/
+node_modules/
+coverage/
+.husky/
+.DS_Store
+test-results/
+playwright-report/
