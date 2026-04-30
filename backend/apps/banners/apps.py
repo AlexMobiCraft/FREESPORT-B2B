@@ -1,0 +1,10 @@
+from django.apps import AppConfig
+
+
+class BannersConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.banners"
+    verbose_name = "Баннеры"
+
+    def ready(self) -> None:
+        import apps.banners.signals  # noqa: F401

@@ -1,0 +1,12 @@
+.next/
+node_modules/
+coverage/
+.husky/
+.DS_Store
+test-results/
+playwright-report/
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx

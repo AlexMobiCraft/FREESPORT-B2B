@@ -1,0 +1,228 @@
+{
+  "main": {
+    "id": "7e4fd425b6a35951",
+    "type": "split",
+    "children": [
+      {
+        "id": "7f188c0f3654168b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4513498424e52642",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Новая вкладка"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "f307c558ff56861f",
+    "type": "split",
+    "children": [
+      {
+        "id": "9f90e49d83d8a5d3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9d66b617743d53a1",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "b105d1d2470b12a7",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "edd3cf0b1995642b",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "edf90135fe61f004",
+    "type": "split",
+    "children": [
+      {
+        "id": "fb76ff9d025925e1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e3510a7427f5124e",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "docs/integrations/1c/import-flow-detailed.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки для import-flow-detailed"
+            }
+          },
+          {
+            "id": "b3a6448597c9657d",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "_bmad-output/planning-artifacts/architecture.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки из architecture"
+            }
+          },
+          {
+            "id": "78721350faba0cbd",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "ee6c9d2ed7db9554",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "d70871dd4a08d9c8",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "_bmad-output/planning-artifacts/architecture.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура architecture"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false,
+      "graph:Граф": false
+    }
+  },
+  "active": "4513498424e52642",
+  "lastOpenFiles": [
+    "docs/integrations/1c/architecture.md",
+    "architecture/20-1c-integration.md",
+    "docs/architecture/index.md",
+    "docs/integrations/1c/import-process.md",
+    "docs/archive/v4/architecture.md",
+    "_bmad-output/planning-artifacts/architecture.md",
+    "docs/architecture/request-to-1c-developer.md",
+    "docs/architecture/product-variant-proposal.md",
+    "docs/architecture/source-tree.md",
+    "architecture",
+    "README.md",
+    "docs/integrations/1c/import-flow-detailed.md",
+    "docs/integrations/1c/analysis-orders-xml.md",
+    "docs/integrations/1c/Структура категорий товара.md",
+    "docs/integrations/1c/transport-layer.md",
+    "docs/integrations/1c/order-vat-warehouse-routing.md",
+    "docs/integrations/1c/1.md",
+    "docs/integrations/1c/order-import-handler-diagnostics.md",
+    "docs/integrations/1c/commands-guide.md",
+    "Исправить.md",
+    "frontend/node_modules/happy-dom/lib/event/events/CloseEvent.js",
+    "frontend/node_modules/ws/lib/websocket-server.js",
+    "frontend/node_modules/ws/lib/websocket.js",
+    "frontend/node_modules/ws/lib/subprotocol.js",
+    "frontend/node_modules/ws/lib/sender.js",
+    "frontend/node_modules/ws/lib/receiver.js",
+    "frontend/node_modules/ws/lib/permessage-deflate.js",
+    "frontend/node_modules/ws/lib/extension.js",
+    "frontend/node_modules/ws/lib/stream.js",
+    "frontend/test-results/checkout-Checkout-Error-Ha-489ca-es-network-error-gracefully-chromium/error-context.md",
+    "frontend/test-results/checkout-Checkout-Error-Ha-489ca-es-network-error-gracefully-chromium/test-failed-1.png",
+    "frontend/test-results/checkout-Checkout-Error-Ha-d3e2b-alidation-error-from-server-chromium/test-failed-1.png",
+    "frontend/test-results/checkout-Checkout-Error-Ha-d3e2b-alidation-error-from-server-chromium/error-context.md",
+    "frontend/test-results/checkout-Checkout-Error-Ha-c07c3-e-when-order-creation-fails-chromium/error-context.md",
+    "frontend/test-results/checkout-Checkout-Error-Ha-c07c3-e-when-order-creation-fails-chromium/test-failed-1.png",
+    "frontend/test-results/checkout-Checkout-Form-Val-93c9d-s-delivery-method-selection-chromium/error-context.md",
+    "frontend/test-results/checkout-Checkout-Form-Val-93c9d-s-delivery-method-selection-chromium/test-failed-1.png",
+    "frontend/test-results/checkout-Checkout-Form-Val-be941-imum-length-for-name-fields-chromium/error-context.md",
+    "frontend/test-results/checkout-Checkout-Form-Val-be941-imum-length-for-name-fields-chromium/test-failed-1.png",
+    "frontend/test-results/checkout-Checkout-Flow-E2E-1f1da-t-flow-from-cart-to-success-chromium/test-failed-1.png",
+    "frontend/test-results/checkout-Checkout-Flow-E2E-1f1da-t-flow-from-cart-to-success-chromium/error-context.md",
+    "frontend/test-results/checkout-Checkout-Flow-E2E-3f2a7-ntact-information-correctly-chromium/error-context.md",
+    "frontend/test-results/checkout-Checkout-Flow-E2E-3f2a7-ntact-information-correctly-chromium/test-failed-1.png"
+  ]
+}
