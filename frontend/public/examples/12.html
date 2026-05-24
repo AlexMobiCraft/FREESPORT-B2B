@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FREESPORT | Urban Futurism Store</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Roboto:ital,wght@0,400;0,700;1,900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #ff6b00;
+        --dark-bg: #050505;
+        --card-bg: #ffffff;
+        --text-light: #f4f4f4;
+        --text-dark: #111111;
+        --gray-line: #333333;
+        --font-main: 'Inter', sans-serif;
+        --font-display: 'Roboto', sans-serif;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: var(--dark-bg);
+        color: var(--text-light);
+        font-family: var(--font-main);
+        overflow-x: hidden;
+        line-height: 1.5;
+      }
+
+      a {
+        text-decoration: none;
+        color: inherit;
+        transition: 0.3s;
+      }
+      ul {
+        list-style: none;
+      }
+
+      /* --- UTILS --- */
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      .section-title {
+        font-family: var(--font-display);
+        font-size: 2.5rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        font-style: italic;
+        margin-bottom: 40px;
+        position: relative;
+        display: inline-block;
+        letter-spacing: 2px;
+      }
+
+      .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 5px;
+        right: -20px;
+        width: 60px;
+        height: 4px;
+        background: var(--primary);
+        transform: skewX(-20deg);
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 12px 30px;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        clip-path: polygon(
+          10px 0,
+          100% 0,
+          100% calc(100% - 10px),
+          calc(100% - 10px) 100%,
+          0 100%,
+          0 10px
+        );
+      }
+
+      .btn-primary {
+        background-color: var(--primary);
+        color: #fff;
+      }
+
+      .btn-primary:hover {
+        background-color: #fff;
+        color: var(--primary);
+        box-shadow: 0 0 20px rgba(255, 107, 0, 0.6);
+      }
+
+      .btn-outline {
+        background: transparent;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+        clip-path: none; /* Reset for border */
+        border-radius: 0;
+        transform: skewX(-10deg);
+      }
+
+      .btn-outline span {
+        display: block;
+        transform: skewX(10deg);
+      }
+
+      .btn-outline:hover {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 0 15px var(--primary);
+      }
+
+      /* --- HEADER --- */
+      header {
+        background-color: rgba(5, 5, 5, 0.95);
+        border-bottom: 1px solid var(--gray-line);
+        padding: 20px 0;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        backdrop-filter: blur(10px);
+      }
+
+      .nav-wrapper {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .logo {
+        font-family: var(--font-display);
+        font-size: 2rem;
+        font-weight: 900;
+        font-style: italic;
+        color: var(--primary);
+        letter-spacing: -1px;
+        text-shadow: 0 0 10px rgba(255, 107, 0, 0.3);
+      }
+
+      nav ul {
+        display: flex;
+        gap: 30px;
+      }
+
+      nav a {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        position: relative;
+      }
+
+      nav a::before {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 2px;
+        bottom: -5px;
+        left: 0;
+        background-color: var(--primary);
+        transition: 0.3s;
+      }
+
+      nav a:hover::before {
+        width: 100%;
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 20px;
+      }
+
+      /* --- HERO --- */
+      .hero {
+        height: 85vh;
+        background:
+          linear-gradient(90deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 100%),
+          url('https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80');
+        background-size: cover;
+        background-position: center;
+        display: flex;
+        align-items: center;
+        position: relative;
+        border-bottom: 4px solid var(--primary);
+      }
+
+      .hero-content {
+        max-width: 800px;
+        padding-left: 20px; /* Aligns with container implicitly if not wrapped */
+      }
+
+      .hero h1 {
+        font-family: var(--font-display);
+        font-size: 5rem;
+        line-height: 0.9;
+        font-weight: 900;
+        font-style: italic;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+
+      .hero h1 span {
+        color: transparent;
+        -webkit-text-stroke: 2px #fff;
+      }
+
+      .hero p {
+        font-size: 1.2rem;
+        margin-bottom: 30px;
+        max-width: 500px;
+        color: #ccc;
+      }
+
+      /* --- CATEGORIES --- */
+      .categories {
+        padding: 80px 0;
+      }
+
+      .cat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+      }
+
+      .cat-item {
+        position: relative;
+        height: 300px;
+        overflow: hidden;
+        cursor: pointer;
+        border: 1px solid var(--gray-line);
+      }
+
+      .cat-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s;
+      }
+
+      .cat-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 20px;
+        background: linear-gradient(to top, #000 0%, transparent 100%);
+        z-index: 2;
+      }
+
+      .cat-item h3 {
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        font-style: italic;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+
+      .cat-item:hover img {
+        transform: scale(1.1);
+      }
+
+      .cat-item:hover h3 {
+        color: var(--primary);
+      }
+
+      /* --- PRODUCT CARDS (GLOBAL) --- */
+      .products-section {
+        padding: 60px 0;
+      }
+
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 30px;
+      }
+
+      /* STRICT REQUIREMENT: WHITE BACKGROUND */
+      .product-card {
+        background-color: #ffffff;
+        color: var(--text-dark);
+        position: relative;
+        transition:
+          transform 0.3s ease,
+          box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: 4px; /* Slight softening, mostly sharp */
+      }
+
+      .product-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 10px 30px rgba(255, 107, 0, 0.2);
+      }
+
+      .card-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: var(--primary);
+        color: #fff;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        z-index: 2;
+        clip-path: polygon(0 0, 100% 0, 90% 100%, 0% 100%);
+      }
+
+      .card-img-wrapper {
+        height: 280px;
+        width: 100%;
+        background: #f8f8f8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      .card-img-wrapper img {
+        max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+        mix-blend-mode: multiply; /* Helps integrate product if bg is not perfectly white */
+      }
+
+      .card-info {
+        padding: 20px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .card-category {
+        color: #888;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+        font-weight: 600;
+      }
+
+      .card-title {
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        line-height: 1.2;
+      }
+
+      .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        border-top: 1px solid #eee;
+        padding-top: 15px;
+      }
+
+      .price {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--text-dark);
+      }
+
+      .price span {
+        font-size: 0.9rem;
+        font-weight: 400;
+        color: #999;
+        text-decoration: line-through;
+        margin-right: 5px;
+      }
+
+      .add-btn {
+        background: var(--dark-bg);
+        color: #fff;
+        width: 40px;
+        height: 40px;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: 0.2s;
+        clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%, 0 20%);
+      }
+
+      .add-btn:hover {
+        background: var(--primary);
+      }
+
+      /* --- COLLECTIONS --- */
+      .collections {
+        padding: 80px 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        height: 600px;
+      }
+
+      .collection-item {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--dark-bg);
+      }
+
+      .collection-item img {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: grayscale(100%);
+        transition: 0.5s;
+        z-index: 1;
+      }
+
+      .collection-item:hover img {
+        filter: grayscale(0%);
+        transform: scale(1.05);
+      }
+
+      .collection-text {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 30px;
+        border: 1px solid var(--primary);
+        backdrop-filter: blur(5px);
+      }
+
+      .collection-text h2 {
+        font-family: var(--font-display);
+        font-size: 3rem;
+        font-style: italic;
+        text-transform: uppercase;
+        color: #fff;
+        margin-bottom: 10px;
+      }
+
+      /* --- NEWS --- */
+      .news-section {
+        padding: 80px 0;
+      }
+
+      .news-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+      }
+
+      .news-card {
+        background: #111;
+        border-left: 4px solid var(--primary);
+        padding: 20px;
+        transition: 0.3s;
+      }
+
+      .news-card:hover {
+        background: #1a1a1a;
+      }
+
+      .news-date {
+        color: var(--primary);
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        display: block;
+      }
+
+      .news-card h3 {
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+        font-weight: 600;
+      }
+
+      .news-link {
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        border-bottom: 1px solid var(--primary);
+        padding-bottom: 2px;
+      }
+
+      /* --- NEWSLETTER --- */
+      .newsletter {
+        padding: 80px 0;
+        background: var(--primary);
+        color: #fff;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .newsletter::before {
+        content: 'FREESPORT';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 15vw;
+        font-weight: 900;
+        font-style: italic;
+        opacity: 0.1;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      .newsletter-content {
+        position: relative;
+        z-index: 2;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .newsletter h2 {
+        font-family: var(--font-display);
+        font-size: 3rem;
+        font-style: italic;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+
+      .form-group {
+        display: flex;
+        gap: 10px;
+      }
+
+      .form-group input {
+        flex-grow: 1;
+        padding: 15px;
+        border: none;
+        background: #fff;
+        color: #000;
+        font-family: var(--font-main);
+        font-weight: 600;
+        outline: none;
+        clip-path: polygon(
+          10px 0,
+          100% 0,
+          100% calc(100% - 10px),
+          calc(100% - 10px) 100%,
+          0 100%,
+          0 10px
+        );
+      }
+
+      .form-group button {
+        background: #000;
+        color: #fff;
+        border: none;
+        padding: 0 30px;
+        font-weight: 700;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: 0.3s;
+        clip-path: polygon(
+          10px 0,
+          100% 0,
+          100% calc(100% - 10px),
+          calc(100% - 10px) 100%,
+          0 100%,
+          0 10px
+        );
+      }
+
+      .form-group button:hover {
+        background: #222;
+      }
+
+      /* --- FOOTER --- */
+      footer {
+        background: #000;
+        padding: 60px 0 20px;
+        border-top: 1px solid #222;
+      }
+
+      .footer-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 40px;
+        margin-bottom: 40px;
+      }
+
+      .footer-col h4 {
+        color: #fff;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        font-weight: 700;
+        font-style: italic;
+      }
+
+      .footer-col ul li {
+        margin-bottom: 10px;
+      }
+
+      .footer-col ul li a {
+        color: #888;
+        font-size: 0.9rem;
+      }
+
+      .footer-col ul li a:hover {
+        color: var(--primary);
+      }
+
+      .copyright {
+        text-align: center;
+        color: #444;
+        font-size: 0.8rem;
+        padding-top: 20px;
+        border-top: 1px solid #111;
+      }
+
+      /* --- RESPONSIVE --- */
+      @media (max-width: 768px) {
+        .hero h1 {
+          font-size: 3rem;
+        }
+        .collections {
+          grid-template-columns: 1fr;
+          height: auto;
+        }
+        .collection-item {
+          height: 300px;
+        }
+        .nav-wrapper {
+          flex-direction: column;
+          gap: 15px;
+        }
+        .form-group {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <header>
+      <div class="container nav-wrapper">
+        <a href="#" class="logo">FREESPORT</a>
+        <nav>
+          <ul>
+            <li><a href="#">Мужчинам</a></li>
+            <li><a href="#">Женщинам</a></li>
+            <li><a href="#">Снаряжение</a></li>
+            <li><a href="#">Sale</a></li>
+          </ul>
+        </nav>
+        <div class="header-actions">
+          <a href="#" style="font-weight: 700">ПОИСК</a>
+          <a href="#" style="color: var(--primary); font-weight: 700">КОРЗИНА (0)</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Banner -->
+    <section class="hero">
+      <div class="container">
+        <div class="hero-content">
+          <h1>ПРЕОДОЛЕЙ <br /><span>ПРЕДЕЛЫ</span></h1>
+          <p>
+            Новая коллекция профессиональной экипировки Urban Tech 2024. Технологии будущего для
+            твоих побед сегодня.
+          </p>
+          <div style="display: flex; gap: 15px">
+            <button class="btn btn-primary">Купить сейчас</button>
+            <button class="btn btn-outline"><span>Смотреть каталог</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Categories -->
+    <section class="categories">
+      <div class="container">
+        <h2 class="section-title">Категории</h2>
+        <div class="cat-grid">
+          <div class="cat-item">
+            <img
+              src="https://images.unsplash.com/photo-1556906781-9a412961d289?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+              alt="Кроссовки"
+            />
+            <div class="cat-overlay">
+              <h3>Обувь</h3>
+            </div>
+          </div>
+          <div class="cat-item">
+            <img
+              src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+              alt="Одежда"
+            />
+            <div class="cat-overlay">
+              <h3>Одежда</h3>
+            </div>
+          </div>
+          <div class="cat-item">
+            <img
+              src="https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+              alt="Инвентарь"
+            />
+            <div class="cat-overlay">
+              <h3>Инвентарь</h3>
+            </div>
+          </div>
+          <div class="cat-item">
+            <img
+              src="https://images.unsplash.com/photo-1593079831268-3381b0db4a77?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+              alt="Аксессуары"
+            />
+            <div class="cat-overlay">
+              <h3>Аксессуары</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Best Sellers (White Cards) -->
+    <section class="products-section">
+      <div class="container">
+        <h2 class="section-title">Хиты продаж</h2>
+        <div class="product-grid">
+          <!-- Product 1 -->
+          <div class="product-card">
+            <div class="card-badge">ХИТ</div>
+            <div class="card-img-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+                alt="Кроссовки"
+              />
+            </div>
+            <div class="card-info">
+              <div>
+                <div class="card-category">Бег</div>
+                <div class="card-title">Nike Air Zoom Pegasus Красные</div>
+              </div>
+              <div class="card-footer">
+                <div class="price">12 490 ₽</div>
+                <button class="add-btn">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product 2 -->
+          <div class="product-card">
+            <div class="card-img-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1583454110561-599d12d9ce2f?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+                alt="Гантели"
+              />
+            </div>
+            <div class="card-info">
+              <div>
+                <div class="card-category">Фитнес</div>
+                <div class="card-title">Гантели Hex Pro 10кг</div>
+              </div>
+              <div class="card-footer">
+                <div class="price">4 200 ₽</div>
+                <button class="add-btn">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product 3 -->
+          <div class="product-card">
+            <div class="card-img-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+                alt="Футболка"
+              />
+            </div>
+            <div class="card-info">
+              <div>
+                <div class="card-category">Одежда</div>
+                <div class="card-title">Футболка TechFit Black</div>
+              </div>
+              <div class="card-footer">
+                <div class="price">2 990 ₽</div>
+                <button class="add-btn">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product 4 -->
+          <div class="product-card">
+            <div class="card-badge" style="background: #333">SALE</div>
+            <div class="card-img-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1616124619815-3e284a11f81d?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+                alt="Мяч"
+              />
+            </div>
+            <div class="card-info">
+              <div>
+                <div class="card-category">Футбол</div>
+                <div class="card-title">Мяч Pro Match League</div>
+              </div>
+              <div class="card-footer">
+                <div class="price"><span>5000</span> 3 490 ₽</div>
+                <button class="add-btn">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Collections -->
+    <section class="collections">
+      <div class="collection-item">
+        <img
+          src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80"
+          alt="Gym"
+        />
+        <div class="collection-text">
+          <h2>Street<br />Workout</h2>
+          <button class="btn btn-outline">В коллекцию</button>
+        </div>
+      </div>
+      <div class="collection-item">
+        <img
+          src="https://images.unsplash.com/photo-1530549387789-4c1017266635?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80"
+          alt="Swimming"
+        />
+        <div class="collection-text">
+          <h2>Aqua<br />Pro</h2>
+          <button class="btn btn-outline">В коллекцию</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- New Arrivals -->
+    <section class="products-section">
+      <div class="container">
+        <h2 class="section-title">Новинки</h2>
+        <div class="product-grid">
+          <!-- Product 1 -->
+          <div class="product-card">
+            <div class="card-badge" style="background-color: blue">NEW</div>
+            <div class="card-img-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1552346154-21d32810aba3?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+                alt="Кроссовки"
+              />
+            </div>
+            <div class="card-info">
+              <div>
+                <div class="card-category">Бег</div>
+                <div class="card-title">Nike Air Max 270</div>
+              </div>
+              <div class="card-footer">
+                <div class="price">14 990 ₽</div>
+                <button class="add-btn">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Product 2 -->
+          <div class="product-card">
+            <div class="card-badge" style="background-color: blue">NEW</div>
+            <div class="card-img-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1591191564930-9085496696eb?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+                alt="Теннис"
+              />
+            </div>
+            <div class="card-info">
+              <div>
+                <div class="card-category">Теннис</div>
+                <div class="card-title">Ракетка Wilson Blade</div>
+              </div>
+              <div class="card-footer">
+                <div class="price">18 500 ₽</div>
+                <button class="add-btn">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Product 3 -->
+          <div class="product-card">
+            <div class="card-badge" style="background-color: blue">NEW</div>
+            <div class="card-img-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+                alt="Кроссовки"
+              />
+            </div>
+            <div class="card-info">
+              <div>
+                <div class="card-category">Баскетбол</div>
+                <div class="card-title">Jordan High Top Green</div>
+              </div>
+              <div class="card-footer">
+                <div class="price">16 200 ₽</div>
+                <button class="add-btn">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Product 4 -->
+          <div class="product-card">
+            <div class="card-badge" style="background-color: blue">NEW</div>
+            <div class="card-img-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1592632759905-23ee36927d62?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+                alt="Спортпит"
+              />
+            </div>
+            <div class="card-info">
+              <div>
+                <div class="card-category">Аксессуары</div>
+                <div class="card-title">Шейкер Metal 0.7L</div>
+              </div>
+              <div class="card-footer">
+                <div class="price">1 200 ₽</div>
+                <button class="add-btn">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- News Feed -->
+    <section class="news-section">
+      <div class="container">
+        <h2 class="section-title">Спортивный Блог</h2>
+        <div class="news-grid">
+          <div class="news-card">
+            <span class="news-date">24 ОКТ 2023</span>
+            <h3>Как выбрать идеальные кроссовки для марафона</h3>
+            <p style="color: #aaa; margin-bottom: 20px">
+              Обзор топовых моделей этого сезона и советы профессионалов.
+            </p>
+            <a href="#" class="news-link">Читать далее</a>
+          </div>
+          <div class="news-card">
+            <span class="news-date">18 ОКТ 2023</span>
+            <h3>Топ-5 упражнений с гирями дома</h3>
+            <p style="color: #aaa; margin-bottom: 20px">
+              Эффективная программа тренировок на все группы мышц.
+            </p>
+            <a href="#" class="news-link">Читать далее</a>
+          </div>
+          <div class="news-card">
+            <span class="news-date">10 ОКТ 2023</span>
+            <h3>Новая коллекция Winter Pro уже в продаже</h3>
+            <p style="color: #aaa; margin-bottom: 20px">
+              Утепленная одежда для тренировок на улице в мороз.
+            </p>
+            <a href="#" class="news-link">Читать далее</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="newsletter">
+      <div class="newsletter-content">
+        <h2>Не пропусти дропы</h2>
+        <p style="margin-bottom: 30px; font-size: 1.1rem">
+          Подпишись на рассылку и получи скидку 10% на первый заказ
+        </p>
+        <form class="form-group">
+          <input type="email" placeholder="Твой e-mail" />
+          <button type="submit">Подписаться</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <div class="logo" style="margin-bottom: 20px">FREESPORT</div>
+            <p style="color: #888; font-size: 0.9rem">
+              Магазин спортивных товаров будущего. Технологии, стиль и качество для ваших
+              достижений.
+            </p>
+          </div>
+          <div class="footer-col">
+            <h4>Покупателям</h4>
+            <ul>
+              <li><a href="#">Доставка и оплата</a></li>
+              <li><a href="#">Возврат товара</a></li>
+              <li><a href="#">Таблица размеров</a></li>
+              <li><a href="#">Статус заказа</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Компания</h4>
+            <ul>
+              <li><a href="#">О нас</a></li>
+              <li><a href="#">Контакты</a></li>
+              <li><a href="#">Магазины</a></li>
+              <li><a href="#">Вакансии</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Контакты</h4>
+            <ul>
+              <li><a href="#">8 (800) 555-35-35</a></li>
+              <li><a href="#">hello@freesport.ru</a></li>
+              <li style="margin-top: 15px">
+                <a href="#" style="margin-right: 10px">VK</a>
+                <a href="#" style="margin-right: 10px">TG</a>
+                <a href="#">YT</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="copyright">
+          &copy; 2023 FREESPORT. Все права защищены. Дизайн в стиле Urban Futurism.
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
