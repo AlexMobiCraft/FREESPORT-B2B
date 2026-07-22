@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FREESPORT | Корзина</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Roboto:ital,wght@0,400;0,700;1,900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff6b00;
+            --dark: #111111;
+            --light: #f4f4f4;
+            --white: #ffffff;
+            --border-width: 3px;
+            --shadow-offset: 6px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.5;
+            padding-bottom: 50px;
+        }
+
+        /* --- HEADER --- */
+        header {
+            background-color: var(--dark);
+            padding: 20px 40px;
+            border-bottom: var(--border-width) solid var(--primary);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            font-family: 'Roboto', sans-serif;
+            font-weight: 900;
+            font-style: italic;
+            font-size: 2rem;
+            color: var(--primary);
+            text-decoration: none;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+        }
+
+        /* --- LAYOUT --- */
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 40px;
+        }
+
+        h1 {
+            font-family: 'Roboto', sans-serif;
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+            font-size: 3rem;
+            margin-bottom: 30px;
+            line-height: 0.9;
+        }
+
+        /* --- CART ITEMS SECTION --- */
+        .cart-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .cart-item {
+            background-color: var(--white);
+            border: var(--border-width) solid var(--dark);
+            display: flex;
+            padding: 20px;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .cart-item:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--dark);
+        }
+
+        .item-image {
+            width: 140px;
+            height: 140px;
+            background-color: #eee;
+            border: 2px solid var(--dark);
+            object-fit: cover;
+            margin-right: 25px;
+        }
+
+        .item-details {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .item-name {
+            font-weight: 800;
+            font-size: 1.25rem;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .item-meta {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .item-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: auto;
+        }
+
+        .qty-wrapper {
+            display: flex;
+            border: 2px solid var(--dark);
+            height: 40px;
+        }
+
+        .qty-btn {
+            width: 40px;
+            background: var(--dark);
+            color: var(--white);
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .qty-btn:hover {
+            background: var(--primary);
+            color: var(--dark);
+        }
+
+        .qty-input {
+            width: 50px;
+            text-align: center;
+            border: none;
+            font-weight: 700;
+            font-size: 1rem;
+            -moz-appearance: textfield;
+        }
+
+        .item-price {
+            font-family: 'Roboto', sans-serif;
+            font-weight: 900;
+            font-style: italic;
+            font-size: 1.5rem;
+            color: var(--dark);
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: transparent;
+            border: none;
+            color: #999;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+
+        .remove-btn:hover {
+            color: red;
+            border-color: red;
+        }
+
+        /* --- ORDER SUMMARY SIDEBAR --- */
+        .summary-card {
+            background-color: var(--white);
+            border: var(--border-width) solid var(--dark);
+            padding: 30px;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0 rgba(0,0,0,0.1);
+        }
+
+        .summary-title {
+            font-family: 'Roboto', sans-serif;
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+            font-size: 2rem;
+            margin-bottom: 25px;
+            border-bottom: 3px solid var(--dark);
+            padding-bottom: 10px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        /* --- DELIVERY CALCULATOR --- */
+        .delivery-calc {
+            margin: 25px 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            border: 2px dashed var(--dark);
+        }
+
+        .delivery-label {
+            display: block;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .city-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--dark);
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            margin-bottom: 15px;
+            background: var(--white);
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='4' stroke-linecap='square' stroke-linejoin='miter'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 15px;
+            cursor: pointer;
+        }
+
+        .city-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .delivery-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .radio-custom {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--dark);
+            margin-right: 10px;
+            display: grid;
+            place-content: center;
+        }
+
+        input[type="radio"] {
+            display: none;
+        }
+
+        input[type="radio"]:checked + .radio-custom {
+            background-color: var(--primary);
+            border-color: var(--dark);
+        }
+
+        input[type="radio"]:checked + .radio-custom::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: var(--dark);
+        }
+
+        /* --- TOTAL & ACTION --- */
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 3px solid var(--dark);
+            font-family: 'Roboto', sans-serif;
+            font-weight: 900;
+            font-style: italic;
+            font-size: 1.8rem;
+        }
+
+        .checkout-btn {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            background-color: var(--primary);
+            color: var(--dark);
+            border: 3px solid var(--dark);
+            font-family: 'Roboto', sans-serif;
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+            font-size: 1.5rem;
+            margin-top: 30px;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.1s;
+        }
+
+        .checkout-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0 var(--dark);
+        }
+
+        .checkout-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: none;
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-card {
+                position: static;
+                margin-top: 20px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .cart-item {
+                flex-direction: column;
+            }
+            .item-image {
+                width: 100%;
+                height: 200px;
+                margin-bottom: 20px;
+            }
+            .item-controls {
+                margin-top: 20px;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="#" class="brand">FREESPORT</a>
+    </header>
+
+    <div class="container">
+        
+        <!-- Cart Items Column -->
+        <main>
+            <h1>Твоя корзина</h1>
+            
+            <div class="cart-list">
+                <!-- Product 1 -->
+                <div class="cart-item">
+                    <button class="remove-btn">Удалить</button>
+                    <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=300&auto=format&fit=crop" alt="Кроссовки" class="item-image">
+                    <div class="item-details">
+                        <div>
+                            <div class="item-name">Nike Air Zoom Pegasus</div>
+                            <div class="item-meta">Цвет: Оранжевый / Размер: 42</div>
+                        </div>
+                        <div class="item-controls">
+                            <div class="qty-wrapper">
+                                <button class="qty-btn">-</button>
+                                <input type="number" class="qty-input" value="1" min="1">
+                                <button class="qty-btn">+</button>
+                            </div>
+                            <div class="item-price">12 990 ₽</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product 2 -->
+                <div class="cart-item">
+                    <button class="remove-btn">Удалить</button>
+                    <img src="https://images.unsplash.com/photo-1519861531473-92002639313cc?q=80&w=300&auto=format&fit=crop" alt="Баскетбольный мяч" class="item-image">
+                    <div class="item-details">
+                        <div>
+                            <div class="item-name">Мяч Spalding Street</div>
+                            <div class="item-meta">Размер: 7 / Материал: Композит</div>
+                        </div>
+                        <div class="item-controls">
+                            <div class="qty-wrapper">
+                                <button class="qty-btn">-</button>
+                                <input type="number" class="qty-input" value="1" min="1">
+                                <button class="qty-btn">+</button>
+                            </div>
+                            <div class="item-price">4 500 ₽</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product 3 -->
+                <div class="cart-item">
+                    <button class="remove-btn">Удалить</button>
+                    <img src="https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=300&auto=format&fit=crop" alt="Худи" class="item-image">
+                    <div class="item-details">
+                        <div>
+                            <div class="item-name">Худи Oversize Heavy</div>
+                            <div class="item-meta">Цвет: Графит / Размер: L</div>
+                        </div>
+                        <div class="item-controls">
+                            <div class="qty-wrapper">
+                                <button class="qty-btn">-</button>
+                                <input type="number" class="qty-input" value="2" min="1">
+                                <button class="qty-btn">+</button>
+                            </div>
+                            <div class="item-price">8 200 ₽</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Summary & Delivery Sidebar -->
+        <aside>
+            <div class="summary-card">
+                <div class="summary-title">Заказ</div>
+                
+                <div class="summary-row">
+                    <span>Товары (4)</span>
+                    <span>25 690 ₽</span>
+                </div>
+                <div class="summary-row">
+                    <span>Скидка</span>
+                    <span style="color: var(--primary);">- 0 ₽</span>
+                </div>
+
+                <!-- Delivery Calculation Module -->
+                <div class="delivery-calc">
+                    <label class="delivery-label">Расчет доставки</label>
+                    
+                    <select class="city-select">
+                        <option value="msk">Москва</option>
+                        <option value="spb">Санкт-Петербург</option>
+                        <option value="ekb">Екатеринбург</option>
+                        <option value="other">Другой регион</option>
+                    </select>
+
+                    <div class="delivery-options">
+                        <label class="radio-label">
+                            <input type="radio" name="delivery" checked>
+                            <span class="radio-custom"></span>
+                            <div>
+                                <div>Курьер (1-2 дня)</div>
+                                <div style="font-weight: 400; color: #555;">500 ₽</div>
+                            </div>
+                        </label>
+                        
+                        <label class="radio-label">
+                            <input type="radio" name="delivery">
+                            <span class="radio-custom"></span>
+                            <div>
+                                <div>Пункт выдачи (3-4 дня)</div>
+                                <div style="font-weight: 400; color: #555;">350 ₽</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="summary-row" style="margin-bottom:0;">
+                    <span>Доставка</span>
+                    <span>500 ₽</span>
+                </div>
+
+                <div class="total-row">
+                    <span>ИТОГО</span>
+                    <span style="color: var(--primary);">26 190 ₽</span>
+                </div>
+
+                <button class="checkout-btn">Оформить заказ</button>
+            </div>
+        </aside>
+
+    </div>
+
+</body>
+</html>
+
+Скоростной импульс
+

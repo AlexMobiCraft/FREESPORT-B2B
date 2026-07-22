@@ -1,0 +1,169 @@
+/**
+ * ProcessSteps Styles
+ * Story 19.1 - Использует токены дизайн-системы из globals.css
+ */
+
+.processSteps {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-6); /* 24px */
+}
+
+/* Варианты */
+.processSteps.numbered {
+  flex-direction: row;
+}
+
+.processSteps.timeline {
+  flex-direction: row;
+}
+
+/* Шаг */
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  gap: var(--spacing-3); /* 12px */
+}
+
+/* Номер шага */
+.numberWrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-primary);
+  transition: all var(--duration-medium) var(--easing);
+}
+
+.step:hover .numberWrapper {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-hover);
+}
+
+.number {
+  font-size: var(--font-size-title-l); /* 24px */
+  line-height: var(--line-height-title-l); /* 32px */
+  font-weight: 700;
+}
+
+/* Контент */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2); /* 8px */
+}
+
+.title {
+  font-size: var(--font-size-title-m); /* 20px */
+  line-height: var(--line-height-title-m); /* 28px */
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.description {
+  font-size: var(--font-size-body-m); /* 16px */
+  line-height: var(--line-height-body-m); /* 24px */
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Разделители */
+.separator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: var(--spacing-8); /* 32px - выравниваем с центром номера */
+  flex-shrink: 0;
+}
+
+.arrow {
+  color: var(--color-primary);
+  width: 32px;
+  height: 32px;
+}
+
+.line {
+  width: 2px;
+  height: 40px;
+  background: var(--color-primary);
+}
+
+/* Timeline вариант */
+.processSteps.timeline .separator {
+  padding-top: var(--spacing-8);
+}
+
+.processSteps.timeline .line {
+  height: 60px;
+}
+
+/* Mobile (< 640px) - вертикальный layout */
+@media (max-width: 639px) {
+  .processSteps {
+    flex-direction: column;
+    gap: var(--spacing-4); /* 16px */
+  }
+
+  .step {
+    flex-direction: row;
+    text-align: left;
+    align-items: flex-start;
+    gap: var(--spacing-4); /* 16px */
+  }
+
+  .numberWrapper {
+    width: 48px;
+    height: 48px;
+  }
+
+  .number {
+    font-size: var(--font-size-title-m); /* 20px */
+    line-height: var(--line-height-title-m); /* 28px */
+  }
+
+  .separator {
+    padding-top: 0;
+    padding-left: var(--spacing-6); /* 24px - выравниваем с центром номера */
+    height: 40px;
+  }
+
+  .arrow {
+    transform: rotate(90deg); /* Поворачиваем стрелку вниз */
+  }
+
+  .line {
+    width: 2px;
+    height: 100%;
+  }
+
+  .title {
+    font-size: var(--font-size-body-l); /* 18px */
+    line-height: var(--line-height-body-l); /* 28px */
+  }
+
+  .description {
+    font-size: var(--font-size-body-s); /* 14px */
+    line-height: var(--line-height-body-s); /* 20px */
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .numberWrapper {
+    transition: none;
+  }
+
+  .step:hover .numberWrapper {
+    transform: none;
+  }
+}
