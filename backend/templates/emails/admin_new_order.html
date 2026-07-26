@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Новый заказ #{{ order.order_number }}</title>
+  </head>
+
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px">
+      <h1 style="color: #1a365d">📦 Новый заказ #{{ order.order_number }}</h1>
+
+      <p>Создан новый заказ на сайте FREESPORT.</p>
+
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0">
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            <strong>Номер заказа:</strong>
+          </td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            {{ order.order_number }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            <strong>Клиент:</strong>
+          </td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            {{ customer_name }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            <strong>Email:</strong>
+          </td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            {{ customer_email }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            <strong>Телефон:</strong>
+          </td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            {{ customer_phone }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            <strong>Сумма заказа:</strong>
+          </td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            <strong>{{ order.total_amount }} ₽</strong>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            <strong>Способ доставки:</strong>
+          </td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            {{ delivery_method }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            <strong>Адрес доставки:</strong>
+          </td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee">
+            {{ order.delivery_address }}
+          </td>
+        </tr>
+      </table>
+
+      <h2 style="color: #1a365d">Товары в заказе</h2>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0">
+        <tr style="background: #1a365d; color: #fff">
+          <th style="padding: 10px; text-align: left">Товар</th>
+          <th style="padding: 10px; text-align: center">Кол-во</th>
+          <th style="padding: 10px; text-align: right">Цена</th>
+          <th style="padding: 10px; text-align: right">Сумма</th>
+        </tr>
+        {% for item in items %}
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #eee">
+            {{ item.product_name }}
+          </td>
+          <td
+            style="
+              padding: 8px;
+              border-bottom: 1px solid #eee;
+              text-align: center;
+            "
+          >
+            {{ item.quantity }}
+          </td>
+          <td
+            style="
+              padding: 8px;
+              border-bottom: 1px solid #eee;
+              text-align: right;
+            "
+          >
+            {{ item.unit_price }} ₽
+          </td>
+          <td
+            style="
+              padding: 8px;
+              border-bottom: 1px solid #eee;
+              text-align: right;
+            "
+          >
+            {{ item.total_price }} ₽
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      {% if order.notes %}
+      <h2 style="color: #1a365d">Комментарий к заказу</h2>
+      <p style="background: #f5f5f5; padding: 15px; border-radius: 5px">
+        {{ order.notes }}
+      </p>
+      {% endif %}
+
+      <p style="margin-top: 30px">
+        <a
+          href="{{ admin_url }}"
+          style="
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3182ce;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+          "
+        >
+          Открыть заказ в админке
+        </a>
+      </p>
+
+      <p style="color: #718096; font-size: 12px; margin-top: 30px">
+        Это автоматическое уведомление от платформы FREESPORT.
+      </p>
+    </div>
+  </body>
+</html>

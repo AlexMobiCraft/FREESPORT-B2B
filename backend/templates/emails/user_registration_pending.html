@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Заявка принята</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px">
+      <h1 style="color: #1a365d">🏃 Добро пожаловать в FREESPORT!</h1>
+
+      <p>Уважаемый(ая) {{ first_name }},</p>
+
+      <p>
+        Ваша заявка на регистрацию в качестве
+        <strong>{{ role_display }}</strong> {% if company_name %}({{
+        company_name }}){% endif %} успешно принята.
+      </p>
+
+      <div
+        style="
+          background-color: #fef3c7;
+          border: 1px solid #f59e0b;
+          border-radius: 8px;
+          padding: 16px;
+          margin: 20px 0;
+        "
+      >
+        <p style="margin: 0; color: #92400e">
+          <strong>⏳ Ваша заявка находится на рассмотрении</strong>
+        </p>
+        <p style="margin: 10px 0 0; color: #92400e">
+          Наши специалисты проверят предоставленные данные и свяжутся с вами в
+          течение 1-2 рабочих дней.
+        </p>
+      </div>
+
+      <p>
+        После проверки вы получите уведомление на этот email и сможете войти в
+        систему.
+      </p>
+
+      <p>Если у вас возникли вопросы, свяжитесь с нами:</p>
+      <ul>
+        <li>Email: support@freesport.ru</li>
+        <li>Телефон: +7 (XXX) XXX-XX-XX</li>
+      </ul>
+
+      <p>С уважением,<br />Команда FREESPORT</p>
+
+      <p style="color: #718096; font-size: 12px; margin-top: 30px">
+        Это автоматическое уведомление. Пожалуйста, не отвечайте на это письмо.
+      </p>
+    </div>
+  </body>
+</html>

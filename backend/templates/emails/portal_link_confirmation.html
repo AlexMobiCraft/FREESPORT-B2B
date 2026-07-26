@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Подтверждение привязки аккаунта</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px">
+      <h1 style="color: #1a365d">🔗 Подтверждение привязки аккаунта</h1>
+
+      <p>Здравствуйте!</p>
+
+      <p>
+        Вы регистрируетесь на портале FREESPORT с данными, которые совпадают
+        с уже существующей записью нашего клиента. Чтобы привязать регистрацию
+        к этой записи и подтвердить, что этот email принадлежит вам, перейдите
+        по ссылке ниже.
+      </p>
+
+      <div style="margin: 30px 0; text-align: center">
+        <a
+          href="{{ confirm_url }}"
+          style="
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+          "
+          >Подтвердить привязку</a
+        >
+      </div>
+
+      <p>
+        Если кнопка не работает, скопируйте и вставьте следующую ссылку в
+        адресную строку браузера:
+      </p>
+      <p
+        style="
+          background-color: #f3f4f6;
+          padding: 10px;
+          border-radius: 4px;
+          word-break: break-all;
+        "
+      >
+        {{ confirm_url }}
+      </p>
+
+      <p>После подтверждения ваша заявка будет направлена на верификацию администратору.</p>
+
+      <p>
+        Если вы не выполняли эту регистрацию, просто проигнорируйте это
+        письмо.
+      </p>
+
+      <p>С уважением,<br />Команда FREESPORT</p>
+    </div>
+  </body>
+</html>
