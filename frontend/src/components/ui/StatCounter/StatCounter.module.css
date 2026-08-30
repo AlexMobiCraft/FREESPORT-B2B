@@ -1,0 +1,61 @@
+/**
+ * StatCounter Styles
+ * Story 19.1 - Использует токены дизайн-системы из globals.css
+ */
+
+.statCounter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2); /* 8px */
+  text-align: center;
+}
+
+.value {
+  font-size: var(--font-size-headline-l); /* 32px */
+  line-height: var(--line-height-headline-l); /* 40px */
+  font-weight: 700;
+  color: var(--color-primary);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.suffix {
+  font-size: var(--font-size-headline-l); /* 32px */
+  line-height: var(--line-height-headline-l); /* 40px */
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.label {
+  font-size: var(--font-size-body-s); /* 14px */
+  line-height: var(--line-height-body-s); /* 20px */
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Анимация появления при первом рендере */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.statCounter {
+  animation: fadeInUp var(--duration-medium) var(--easing);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .statCounter {
+    animation: none;
+  }
+}

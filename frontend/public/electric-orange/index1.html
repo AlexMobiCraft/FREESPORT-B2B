@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FREESPORT Design System | Final v2.1</title>
+    <base href="/electric-orange/" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Condensed:ital,wght@1,700;1,900&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* =========================================
+           1. DESIGN TOKENS
+           ========================================= */
+      :root {
+        --primary: #ff6b00;
+        --primary-hover: #e65a00;
+        --bg-main: #0f0f0f;
+        --bg-card: #1a1a1a;
+        --text-main: #ffffff;
+        --text-muted: #a0a0a0;
+        --border: #333333;
+
+        --skew-deg: -12deg;
+        --unskew-deg: 12deg;
+
+        --font-display: 'Roboto Condensed', sans-serif;
+        --font-body: 'Inter', sans-serif;
+
+        --transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      /* =========================================
+           2. BASE & RESET
+           ========================================= */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        font-family: var(--font-body);
+        overflow-x: hidden;
+        padding-bottom: 100px;
+      }
+
+      a {
+        text-decoration: none;
+        color: inherit;
+      }
+      ul {
+        list-style: none;
+      }
+
+      /* =========================================
+           3. TYPOGRAPHY CLASSES
+           ========================================= */
+      .h-display {
+        font-family: var(--font-display);
+        font-weight: 900;
+        font-style: italic;
+        text-transform: uppercase;
+        transform: skewX(var(--skew-deg));
+        letter-spacing: 1px;
+        line-height: 1;
+      }
+
+      .section-title {
+        font-size: 2.5rem;
+        margin-bottom: 30px;
+        border-left: 4px solid var(--primary);
+        padding-left: 20px;
+        display: inline-block;
+      }
+
+      .section-label {
+        color: var(--text-muted);
+        font-family: var(--font-display);
+        text-transform: uppercase;
+        font-style: italic;
+        margin-bottom: 30px;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+        display: block;
+        margin-top: 80px;
+      }
+      section:first-child .section-label {
+        margin-top: 0;
+      }
+
+      /* =========================================
+           4. UI COMPONENTS
+           ========================================= */
+      /* BUTTONS */
+      .btn {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        padding: 12px 15px;
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-style: italic;
+        text-transform: uppercase;
+        font-size: 1rem;
+        cursor: pointer;
+        border: none;
+        transition: var(--transition);
+        transform: skewX(var(--skew-deg));
+        white-space: nowrap;
+      }
+      .btn span {
+        transform: skewX(var(--unskew-deg));
+      }
+
+      .btn-primary {
+        background-color: var(--primary);
+        color: #000;
+      }
+      .btn-primary:hover {
+        background-color: #fff;
+        color: var(--primary);
+      }
+
+      .btn-outline {
+        background-color: transparent;
+        border: 2px solid var(--text-main);
+        color: var(--text-main);
+      }
+      .btn-outline:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+
+      /* BADGES */
+      .badge {
+        display: inline-block;
+        background: var(--primary);
+        color: #000;
+        padding: 4px 12px;
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-style: italic;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        transform: skewX(var(--skew-deg));
+      }
+
+      /* INPUTS (Standard) */
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+      .input-field {
+        background: transparent;
+        border: 1px solid var(--border);
+        padding: 12px 16px;
+        color: white;
+        font-family: var(--font-body);
+        font-size: 1rem;
+        outline: none;
+        transition: var(--transition);
+        width: 100%;
+      }
+      .input-field:focus {
+        border-color: var(--primary);
+      }
+
+      /* NEWSLETTER (Compact) */
+      .sub-form {
+        display: flex;
+        width: 100%;
+        height: 50px;
+      }
+      .sub-input {
+        flex-grow: 1;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border);
+        border-right: none;
+        color: var(--text-main);
+        padding: 0 20px;
+        font-family: var(--font-body);
+        font-size: 1rem;
+        outline: none;
+        transition: var(--transition);
+      }
+      .sub-input:focus {
+        background-color: #000;
+        border-color: #555;
+      }
+      .sub-btn {
+        width: 60px;
+        background-color: var(--primary);
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+      }
+      .sub-btn svg {
+        width: 24px;
+        height: 24px;
+        stroke: #fff;
+        stroke-width: 2;
+        fill: none;
+        transition: var(--transition);
+      }
+      .sub-btn:hover {
+        background-color: #fff;
+      }
+      .sub-btn:hover svg {
+        stroke: var(--primary);
+        transform: translateX(3px);
+      }
+
+      /* =========================================
+           5. SKEWED RANGE SLIDER
+           ========================================= */
+      .range-container {
+        width: 100%;
+        margin: 20px 0;
+        transform: skewX(var(--skew-deg));
+      }
+      input[type='range'] {
+        -webkit-appearance: none;
+        width: 100%;
+        background: transparent;
+      }
+      input[type='range']:focus {
+        outline: none;
+      }
+
+      /* TRACK */
+      input[type='range']::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 6px;
+        cursor: pointer;
+        background: #333;
+        border: 0;
+      }
+      /* THUMB */
+      input[type='range']::-webkit-slider-thumb {
+        height: 18px;
+        width: 18px;
+        background: var(--primary);
+        cursor: pointer;
+        -webkit-appearance: none;
+        margin-top: -6px;
+        border: 2px solid #000;
+        transition: background 0.2s;
+      }
+      input[type='range']::-webkit-slider-thumb:hover {
+        background: #fff;
+      }
+
+      /* =========================================
+           6. SIDEBAR & FILTERS
+           ========================================= */
+      .sidebar-panel {
+        background: var(--bg-card);
+        padding: 30px;
+        border: 1px solid var(--border);
+        height: fit-content;
+        width: 100%;
+        max-width: 300px;
+      }
+      .filter-group {
+        margin-bottom: 30px;
+      }
+      .filter-title {
+        font-size: 1.2rem;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 10px;
+        display: block;
+        width: 100%;
+      }
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .checkbox-row input {
+        display: none;
+      }
+      .custom-check {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #555;
+        margin-right: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+        transform: skewX(var(--skew-deg));
+      }
+      .checkbox-row input:checked + .custom-check {
+        background-color: var(--primary);
+        border-color: var(--primary);
+      }
+      .checkbox-row input:checked + .custom-check::after {
+        content: '✓';
+        color: #000;
+        font-weight: 900;
+        font-size: 14px;
+        transform: skewX(var(--unskew-deg));
+      }
+      .checkbox-text {
+        font-family: var(--font-body);
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        transition: var(--transition);
+      }
+      .checkbox-row:hover .checkbox-text {
+        color: var(--text-main);
+      }
+      .checkbox-row:hover .custom-check {
+        border-color: var(--primary);
+      }
+
+      .price-inputs-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      .price-input {
+        width: 50%;
+        background: transparent;
+        border: 1px solid var(--border);
+        padding: 8px;
+        color: white;
+        font-family: var(--font-body);
+        font-size: 0.9rem;
+      }
+      .price-input:focus {
+        border-color: var(--primary);
+        outline: none;
+      }
+
+      /* --- FEATURES (Design System Updated) --- */
+      .features {
+        background: var(--bg-main); /* #0f0f0f */
+        padding: 80px 0; /* Увеличил отступы для "воздуха" */
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Адаптивность */
+        gap: 40px;
+        text-align: center;
+      }
+
+      .feat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .feat-item h3 {
+        font-family: var(--font-display); /* Roboto Condensed */
+        font-weight: 900; /* Жирный */
+        font-style: italic; /* Курсив */
+        text-transform: uppercase;
+        color: var(--primary); /* Оранжевый #FF6B00 */
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+        letter-spacing: 1px;
+
+        /* Ключевой элемент стиля: Наклон */
+        transform: skewX(var(--skew-deg));
+      }
+
+      .feat-item p {
+        font-family: var(--font-body); /* Inter */
+        color: var(--text-muted); /* Серый текст */
+        font-size: 1rem;
+        line-height: 1.5;
+        max-width: 320px; /* Ограничение ширины для удобства чтения */
+        margin: 0 auto;
+
+        /* Текст описания оставляем прямым (0deg) для читаемости,
+           согласно правилам design.json */
+      }
+
+      /* =========================================
+           7. CARD STYLES
+           ========================================= */
+      .card {
+        background-color: var(--bg-card);
+        position: relative;
+        transition: var(--transition);
+      }
+
+      /* Category Card */
+      .cat-card {
+        width: 100%;
+        aspect-ratio: 1/1;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        position: relative;
+        cursor: pointer;
+      }
+      .cat-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: grayscale(100%) contrast(120%);
+        transition: var(--transition);
+        transform: scale(1.01);
+      }
+      .cat-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 107, 0, 0.4), transparent);
+        transform: skewX(-20deg);
+        transition: 1s;
+        z-index: 2;
+      }
+      .cat-card:hover {
+        border-color: var(--primary);
+      }
+      .cat-card:hover img {
+        filter: grayscale(0%);
+        transform: scale(1.1);
+      }
+      .cat-card:hover::after {
+        left: 150%;
+      }
+      .cat-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 30px;
+        z-index: 3;
+        background: linear-gradient(0deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+      }
+      .cat-title {
+        color: #fff;
+        font-size: 1.8rem;
+        margin-bottom: 5px;
+        text-shadow: 2px 2px 0 #000;
+      }
+
+      /* Product Card */
+      .prod-card {
+        border: 1px solid transparent;
+        display: flex;
+        flex-direction: column;
+      }
+      .prod-image-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1/1;
+        overflow: hidden;
+        background: #252525;
+      }
+      .prod-image-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s;
+      }
+      .prod-info {
+        padding: 20px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .prod-price {
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-style: italic;
+        font-size: 1.5rem;
+        color: var(--primary);
+        transform: skewX(var(--skew-deg));
+        margin-bottom: 15px;
+        display: block;
+      }
+
+      /* PRODUCT ACTIONS (ALWAYS VISIBLE) */
+      .prod-actions {
+        margin-top: auto;
+        /* Removed opacity: 0 and transform for permanent visibility */
+        display: flex;
+        gap: 10px;
+      }
+
+      .prod-actions .btn {
+        flex: 1;
+        font-size: 0.9rem;
+        padding: 12px 5px; /* Compact padding for small cards */
+      }
+
+      .prod-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      .prod-card:hover img {
+        transform: scale(1.1);
+      }
+
+      /* News Card */
+      .news-card {
+        border: 1px solid transparent;
+        display: flex;
+        flex-direction: column;
+      }
+      .news-image-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        overflow: hidden;
+      }
+      .news-image-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s;
+      }
+      .news-content {
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+      .news-title {
+        font-size: 1.5rem;
+        margin-bottom: 0;
+        line-height: 1.1;
+      }
+      .news-excerpt {
+        font-family: var(--font-body);
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        line-height: 1.5;
+      }
+      .read-more {
+        color: var(--primary);
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-style: italic;
+        text-transform: uppercase;
+        transform: skewX(var(--skew-deg));
+        margin-top: auto;
+        border-bottom: 1px solid transparent;
+        width: fit-content;
+      }
+      .read-more:hover {
+        border-bottom-color: var(--primary);
+      }
+      .news-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--border);
+      }
+      .news-card:hover .news-image-wrap img {
+        transform: scale(1.05);
+      }
+
+      /* =========================================
+           8. LAYOUT
+           ========================================= */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 30px;
+      }
+
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+      }
+      /* Адаптивность: На планшетах делаем 2 колонки */
+      @media (max-width: 1100px) {
+        .cards-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      /* Адаптивность: На телефонах 1 колонка */
+      @media (max-width: 600px) {
+        .cards-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .ui-demo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 50px;
+        background: var(--bg-card);
+        padding: 40px;
+        border: 1px solid var(--border);
+        margin-bottom: 60px;
+      }
+      @media (max-width: 900px) {
+        .sidebar-panel {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header
+      style="
+        border-bottom: 2px solid var(--border);
+        padding: 20px 0;
+        background: #000;
+        margin-bottom: 40px;
+      "
+    >
+      <div
+        class="container"
+        style="display: flex; align-items: center; justify-content: space-between"
+      >
+        <div class="h-display" style="font-size: 2rem; color: var(--primary)">FREESPORT</div>
+        <nav style="display: flex; gap: 30px">
+          <a href="#" class="h-display" style="color: #fff; font-size: 1rem">Каталог</a>
+          <a href="#" class="h-display" style="color: #fff; font-size: 1rem">Скидки</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <section>
+        <span class="section-label">Design System v2.1</span>
+        <h2 class="h-display section-title">UI КОМПОНЕНТЫ</h2>
+
+        <div class="ui-demo-grid">
+          <div>
+            <div class="h-display" style="color: #555; margin-bottom: 20px">
+              01. Typography & Actions
+            </div>
+            <h1 class="h-display" style="font-size: 2.5rem; margin-bottom: 10px">ЗАГОЛОВОК H1</h1>
+            <div
+              class="h-display"
+              style="font-size: 2rem; color: var(--primary); margin-bottom: 20px"
+            >
+              12 990 ₽
+            </div>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap">
+              <button class="btn btn-primary"><span>В КОРЗИНУ</span></button>
+              <button class="btn btn-outline"><span>ЗАПОМНИТЬ</span></button>
+            </div>
+          </div>
+
+          <div>
+            <div class="h-display" style="color: #555; margin-bottom: 20px">
+              02. Forms (Rectangular)
+            </div>
+
+            <div class="input-group" style="margin-bottom: 25px">
+              <input type="text" class="input-field" placeholder="Поиск товара..." />
+            </div>
+
+            <div style="margin-bottom: 10px; font-size: 0.9rem; color: #777">Newsletter:</div>
+            <form class="sub-form">
+              <input type="email" class="sub-input" placeholder="Ваш Email" />
+              <button type="submit" class="sub-btn">
+                <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </form>
+          </div>
+
+          <div>
+            <div class="h-display" style="color: #555; margin-bottom: 20px">03. Sidebar Widget</div>
+
+            <aside class="sidebar-panel">
+              <div class="filter-group">
+                <div class="h-display filter-title">КАТЕГОРИИ</div>
+                <label class="checkbox-row">
+                  <input type="checkbox" checked />
+                  <span class="custom-check"></span>
+                  <span class="checkbox-text">Кроссфит</span>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox" />
+                  <span class="custom-check"></span>
+                  <span class="checkbox-text">Фитнес</span>
+                </label>
+              </div>
+
+              <div class="filter-group">
+                <div class="h-display filter-title">БРЕНД</div>
+                <label class="checkbox-row">
+                  <input type="checkbox" checked />
+                  <span class="custom-check"></span>
+                  <span class="checkbox-text">Nike</span>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox" />
+                  <span class="custom-check"></span>
+                  <span class="checkbox-text">Adidas</span>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox" />
+                  <span class="custom-check"></span>
+                  <span class="checkbox-text">Under Armour</span>
+                </label>
+              </div>
+
+              <div class="filter-group">
+                <div class="h-display filter-title">ЦЕНА (₽)</div>
+                <div class="price-inputs-row">
+                  <input type="number" class="price-input" value="1000" />
+                  <input type="number" class="price-input" value="50000" />
+                </div>
+                <div class="range-container">
+                  <input type="range" min="1000" max="50000" value="25000" />
+                </div>
+              </div>
+
+              <button class="btn btn-primary" style="width: 100%"><span>ПРИМЕНИТЬ</span></button>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="features">
+        <div class="container">
+          <div class="features-grid">
+            <div class="feat-item">
+              <h3>Быстрая доставка</h3>
+              <p>По всей России от 2-х дней</p>
+            </div>
+            <div class="feat-item">
+              <h3>Гарантия качества</h3>
+              <p>Только оригинальные бренды</p>
+            </div>
+            <div class="feat-item">
+              <h3>30 дней на возврат</h3>
+              <p>Если товар вам не подошел</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <span class="section-label">Components Showcase</span>
+        <h2 class="h-display section-title">КАТАЛОГ</h2>
+
+        <div class="cards-grid">
+          <article class="cat-card">
+            <img src="img/photo-1534438327276-14e5300c3a48.avif" alt="Gym" />
+            <div class="cat-overlay">
+              <h3 class="h-display cat-title">Фитнес и атлетика</h3>
+              <div class="h-display" style="color: var(--primary); margin-top: 10px">ПЕРЕЙТИ ></div>
+            </div>
+          </article>
+          <article class="cat-card">
+            <img src="img/Gemini_Generated_Image_36n5hd36n5hd36n5.png" alt="Спортивные игры" />
+            <div class="cat-overlay">
+              <h3 class="h-display cat-title">СПОРТИВНЫЕ<br />ИГРЫ</h3>
+              <div class="h-display" style="color: var(--primary); margin-top: 10px">ПЕРЕЙТИ ></div>
+            </div>
+          </article>
+
+          <article class="cat-card">
+            <img src="img/Gemini_Generated_Image_k7t8bpk7t8bpk7t8.png" alt="Гимнастика и танцы" />
+            <div class="cat-overlay">
+              <h3 class="h-display cat-title">ГИМНАСТИКА<br />& ТАНЦЫ</h3>
+              <div class="h-display" style="color: var(--primary); margin-top: 10px">ПЕРЕЙТИ ></div>
+            </div>
+          </article>
+
+          <article class="cat-card">
+            <img src="img/bags.jpg" alt="Единоборства" />
+            <div class="cat-overlay">
+              <h3 class="h-display cat-title">ЕДИНОБОРСТВА</h3>
+              <div class="h-display" style="color: var(--primary); margin-top: 10px">ПЕРЕЙТИ ></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <span class="section-label">Components Showcase</span>
+        <h2 class="h-display section-title">КАРТОЧКИ ПРОДУКТОВ</h2>
+
+        <div class="cards-grid">
+          <article class="card prod-card">
+            <div class="badge" style="position: absolute; top: 15px; left: 10px; z-index: 2">
+              HIT
+            </div>
+            <div class="prod-image-wrap">
+              <img
+                src="img/8f07c7eb-899f-11eb-81dd-00155d3cae02_6a52988c-8c7b-11eb-81de-00155d3cae02.jpg"
+                alt="Product Image"
+              />
+            </div>
+            <div class="prod-info">
+              <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 5px">
+                Espado
+              </div>
+              <h3
+                class="prod-title"
+                style="font-weight: 600; font-size: 1.1rem; margin-bottom: 10px"
+              >
+                Гантель неопреновая Espado ES1115 зеленая
+              </h3>
+              <div class="prod-price">225 ₽</div>
+
+              <div class="prod-actions">
+                <button class="btn btn-primary"><span>В КОРЗИНУ</span></button>
+                <button class="btn btn-outline"><span>ЗАПОМНИТЬ</span></button>
+              </div>
+            </div>
+          </article>
+
+          <article class="card prod-card">
+            <div
+              class="badge"
+              style="
+                position: absolute;
+                top: 15px;
+                left: 10px;
+                z-index: 2;
+                background: #fff;
+                color: #000;
+              "
+            >
+              NEW
+            </div>
+
+            <div class="prod-image-wrap">
+              <img
+                src="img/6976ce61-be0d-11ea-81c4-00155d3cae02_09591dd0-565f-11eb-81d3-00155d3cae02.jpg"
+                alt="Борцовки BoyBo"
+              />
+            </div>
+
+            <div class="prod-info">
+              <div
+                style="
+                  color: var(--text-muted);
+                  font-size: 0.8rem;
+                  margin-bottom: 5px;
+                  text-transform: uppercase;
+                "
+              >
+                BOYBO
+              </div>
+
+              <h3
+                class="prod-title"
+                style="font-weight: 600; font-size: 1.1rem; margin-bottom: 10px"
+              >
+                Борцовки BoyBo на толстой подошве, на липучке красные, BB250-V
+              </h3>
+
+              <div class="prod-price">2 200 ₽</div>
+
+              <div class="prod-actions">
+                <button class="btn btn-primary"><span>В КОРЗИНУ</span></button>
+                <button class="btn btn-outline"><span>ЗАПОМНИТЬ</span></button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <span class="section-label">Components Showcase</span>
+        <h2 class="h-display section-title">НОВОСТИ</h2>
+
+        <div class="cards-grid">
+          <article class="card news-card">
+            <div class="news-image-wrap">
+              <div class="badge" style="position: absolute; top: 15px; left: 15px; z-index: 2">
+                БЛОГ
+              </div>
+              <img src="img/Gemini_Generated_Image_h55a85h55a85h55a.png" alt="Runner" />
+            </div>
+            <div class="news-content">
+              <h3 class="h-display news-title">ТЕХНИКА БЕГА ЗИМОЙ</h3>
+              <p class="news-excerpt">
+                Как не заболеть и сохранить темп в минусовую температуру. Советы от профессионалов.
+              </p>
+              <a href="#" class="read-more">ЧИТАТЬ ДАЛЕЕ &rarr;</a>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
