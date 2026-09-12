@@ -1,0 +1,66 @@
+# Исключить папки из анализа GitNexus
+.obsidian/
+node_modules/
+.git/
+.vscode/
+.idea/
+dist/
+build/
+coverage/
+.next/
+out/
+.env*
+*.log
+*.tmp
+*.txt
+.cache/
+venv/
+ccs.bat
+cc.bat
+ccgl.bat
+ccqwen.bat
+
+
+# Исключить AI-инструменты и артефакты
+.agents/
+.windsurf/
+.claude/
+.kilo/
+_bmad/
+_bmad-output/
+scripts/
+
+# Исключить документацию если нужно
+docs/
+wiki/
+.obsidian/
+
+# Исключить кэш и временные файлы
+.mypy_cache/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+.DS_Store
+Thumbs.db
+
+# Исключить большие сгенерированные файлы
+*.min.js
+*.min.css
+*.bundle.js
+*.chunk.js
+
+# Исключить пустые __init__.py файлы
+**/__init__.py
+
+# Исключить миграции Django (большие и сгенерированные)
+**/migrations/*.py
+
+# Исключить все тестовые файлы (из-за Invalid argument)
+**/test_*.py
+**/tests/**/*.py
+
+# Но включить нужные папки (используйте ! для исключения исключений)
+#!docs/api/
+#!src/tests/

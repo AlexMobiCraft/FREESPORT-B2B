@@ -1,0 +1,44 @@
+{
+  "surfaces": {
+    "newsletter_checkbox": {
+      "description": "Единственный чекбокс формы подписки на рассылку (SubscribeForm, ElectricSubscribeForm). Покрывает и обработку ПДн, и рекламную рассылку — редакция 2 стори 41.3.",
+      "revisions": [
+        {
+          "label": "2026-08-30",
+          "text": "Я даю согласие на обработку моих персональных данных в соответствии с «Политикой обработки персональных данных» и согласен(на) получать информационные и рекламные рассылки от OPTISPORT по электронной почте"
+        }
+      ]
+    },
+    "registration_pdp_checkbox": {
+      "description": "Обязательный чекбокс согласия на обработку ПДн в формах регистрации (RegisterForm, B2BRegisterForm). Формулировки унифицированы в стори 41.9.",
+      "revisions": [
+        {
+          "label": "2026-09-09",
+          "text": "Я даю согласие на обработку моих персональных данных в соответствии с «Политикой обработки персональных данных»"
+        }
+      ]
+    },
+    "registration_marketing_checkbox": {
+      "description": "Необязательный маркетинговый чекбокс в формах регистрации (RegisterForm, B2BRegisterForm). Формулировки унифицированы в стори 41.9.",
+      "revisions": [
+        {
+          "label": "2026-09-09",
+          "text": "Я согласен (на) получать рекламные и информационные рассылки от OPTISPORT"
+        }
+      ]
+    }
+  },
+  "known_versions": [
+    "2026-08-30-77dbceafc3c487ffc24975cf2ce76778",
+    "2026-09-09-de992f50b0456a90e96a66984010dd74",
+    "2026-09-09-e26471e47eba2ba742a4f4488dfdda05"
+  ],
+  "bindings": {
+    "newsletter.pdp_contract": "newsletter_checkbox",
+    "newsletter.marketing_email": "newsletter_checkbox",
+    "registration.pdp_contract": "registration_pdp_checkbox",
+    "registration.marketing_email": "registration_marketing_checkbox",
+    "1c_link.pdp_contract": "registration_pdp_checkbox",
+    "1c_link.marketing_email": "registration_marketing_checkbox"
+  }
+}

@@ -1,0 +1,44 @@
+[tool.black]
+line-length = 120
+extend-exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.tox
+  | \.venv
+  | venv
+  | _build
+  | buck-out
+  | build
+  | data
+  | dist
+  | migrations
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+multi_line_output = 3
+skip = ["venv", ".venv", ".pytest_cache", "data", "migrations"]
+
+# Покрытие меряется по продакшен-коду. Раньше CI считал `--cov=.`, и две трети знаменателя
+# (28816 операторов из 42659) приходилось на сами тесты: метрика на две трети показывала,
+# насколько выполнился тестовый код, а не насколько покрыт продукт. Побочный эффект был хуже
+# неточности — исключение любого теста из прогона механически роняло число, не меняя покрытия
+# продакшен-кода, и порог падал сам собой.
+#
+# Конфиг общий для CI и `make test-*`: раньше CI мерил `--cov=.`, а make — `--cov=apps`,
+# и два показателя были несопоставимы.
+[tool.coverage.run]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/*_tests.py",
+    "*/tests.py",
+    "*/conftest.py",
+    "*/migrations/*",
+    "*/venv/*",
+]

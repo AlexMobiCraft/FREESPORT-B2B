@@ -1,0 +1,104 @@
+/**
+ * Accordion Styles
+ * Story 19.1 - Использует токены дизайн-системы из globals.css
+ */
+
+.accordion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2); /* 8px */
+}
+
+/* Item */
+.accordionItem {
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-default); /* 12px */
+  overflow: hidden;
+  transition: border-color var(--duration-medium) var(--easing);
+}
+
+.accordionItem:hover {
+  border-color: var(--color-primary);
+}
+
+/* Trigger button */
+.trigger {
+  width: 100%;
+  padding: var(--spacing-4) var(--spacing-5); /* 16px 20px */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3); /* 12px */
+  text-align: left;
+  transition: background var(--duration-medium) var(--easing);
+  color: inherit;
+  font-family: inherit;
+}
+
+.trigger:hover {
+  background: var(--color-neutral-200);
+}
+
+.trigger:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+}
+
+.question {
+  font-size: var(--font-size-body-l); /* 18px */
+  line-height: var(--line-height-body-l); /* 28px */
+  font-weight: 600;
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+/* Icon */
+.icon {
+  color: var(--color-primary);
+  transition: transform var(--duration-medium) var(--easing);
+  flex-shrink: 0;
+}
+
+.iconOpen {
+  transform: rotate(180deg);
+}
+
+/* Content */
+.content {
+  max-height: 0;
+  overflow: hidden;
+  transition:
+    max-height var(--duration-medium) var(--easing),
+    opacity var(--duration-medium) var(--easing);
+  opacity: 0;
+}
+
+.contentOpen {
+  opacity: 1;
+}
+
+.contentInner {
+  padding: 0 var(--spacing-5) var(--spacing-4) var(--spacing-5); /* 0 20px 16px 20px */
+}
+
+.answer {
+  font-size: var(--font-size-body-m); /* 16px */
+  line-height: var(--line-height-body-m); /* 24px */
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .icon,
+  .content,
+  .trigger,
+  .accordionItem {
+    transition: none;
+  }
+}
