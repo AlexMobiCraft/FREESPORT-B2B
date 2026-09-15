@@ -1,0 +1,41 @@
+[
+  {
+    "model": "delivery.deliverymethod",
+    "pk": "courier",
+    "fields": {
+      "name": "Курьер",
+      "description": "Доставка курьером до двери. Стоимость уточняется администратором.",
+      "icon": "truck",
+      "is_available": true,
+      "sort_order": 1,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "delivery.deliverymethod",
+    "pk": "pickup",
+    "fields": {
+      "name": "Самовывоз",
+      "description": "Забрать заказ самостоятельно из пункта выдачи.",
+      "icon": "store",
+      "is_available": true,
+      "sort_order": 2,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "delivery.deliverymethod",
+    "pk": "transport_company",
+    "fields": {
+      "name": "Транспортная компания",
+      "description": "Доставка через CDEK, Boxberry и другие службы. Стоимость уточняется.",
+      "icon": "package",
+      "is_available": true,
+      "sort_order": 3,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

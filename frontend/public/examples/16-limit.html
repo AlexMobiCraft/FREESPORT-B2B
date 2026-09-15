@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FREESPORT - Товар Дня</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Condensed:ital,wght@1,900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --freesport-orange: #ff6b00;
+        --freesport-black: #050505;
+        --freesport-dark-gray: #1a1a1a;
+        --freesport-white: #ffffff;
+        --freesport-text-dark: #1f1f1f;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f4f4f4;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      /* --- Main Section Wrapper --- */
+      .freesport-deal-section {
+        width: 100%;
+        max-width: 1200px;
+        background: linear-gradient(
+          105deg,
+          var(--freesport-black) 0%,
+          var(--freesport-dark-gray) 60%,
+          var(--freesport-black) 100%
+        );
+        color: var(--freesport-white);
+        padding: 60px 40px;
+        border-radius: 0;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Background Decor (Dynamic Slants) */
+      .freesport-deal-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -20%;
+        width: 50%;
+        height: 200%;
+        background: rgba(255, 255, 255, 0.03);
+        transform: rotate(15deg);
+        z-index: 0;
+      }
+
+      .freesport-deal-section::after {
+        content: '';
+        position: absolute;
+        bottom: -50%;
+        right: -10%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, var(--freesport-orange) 0%, transparent 70%);
+        opacity: 0.15;
+        z-index: 0;
+      }
+
+      /* --- Left Column: Content & Timer --- */
+      .deal-content {
+        flex: 1;
+        min-width: 300px;
+        z-index: 1;
+        padding-right: 40px;
+      }
+
+      .brand-logo {
+        font-family: 'Roboto Condensed', sans-serif;
+        font-weight: 900;
+        font-style: italic;
+        font-size: 2rem;
+        color: var(--freesport-orange);
+        margin-bottom: 20px;
+        letter-spacing: -1px;
+        display: inline-block;
+      }
+
+      .section-title {
+        font-family: 'Roboto Condensed', sans-serif;
+        font-size: 4rem;
+        font-weight: 900;
+        line-height: 0.9;
+        text-transform: uppercase;
+        font-style: italic;
+        margin-bottom: 20px;
+      }
+
+      .section-title span {
+        color: transparent;
+        -webkit-text-stroke: 1px var(--freesport-white);
+        display: block;
+      }
+
+      .deal-desc {
+        font-size: 1.1rem;
+        color: #ccc;
+        margin-bottom: 35px;
+        max-width: 450px;
+        line-height: 1.5;
+      }
+
+      /* Countdown Timer */
+      .countdown-wrapper {
+        margin-bottom: 40px;
+      }
+
+      .timer-label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--freesport-orange);
+        margin-bottom: 10px;
+        font-weight: 800;
+      }
+
+      .timer-grid {
+        display: flex;
+        gap: 15px;
+      }
+
+      .timer-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .timer-number {
+        font-family: 'Roboto Condensed', sans-serif;
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: var(--freesport-white);
+        background: rgba(255, 255, 255, 0.1);
+        width: 70px;
+        height: 70px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-bottom: 4px solid var(--freesport-orange);
+        font-style: italic;
+      }
+
+      .timer-text {
+        font-size: 0.75rem;
+        color: #888;
+        margin-top: 5px;
+        text-transform: uppercase;
+      }
+
+      /* --- Right Column: Product Card --- */
+      .deal-product {
+        flex: 0 0 400px;
+        z-index: 2;
+        perspective: 1000px;
+      }
+
+      /* CARD STYLES (Strict White Background) */
+      .product-card {
+        background-color: var(--freesport-white);
+        border-radius: 12px;
+        padding: 25px;
+        position: relative;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        transition:
+          transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.27),
+          box-shadow 0.4s ease;
+        transform-style: preserve-3d;
+      }
+
+      .product-card:hover {
+        transform: translateY(-10px) rotateX(2deg);
+        box-shadow: 0 30px 60px rgba(255, 107, 0, 0.2);
+      }
+
+      .discount-badge {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background-color: var(--freesport-orange);
+        color: var(--freesport-white);
+        font-weight: 800;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 1rem;
+        z-index: 10;
+        box-shadow: 0 4px 10px rgba(255, 107, 0, 0.4);
+        animation: pulse 2s infinite;
+      }
+
+      .product-image-container {
+        width: 100%;
+        height: 280px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      /* Abstract circle behind shoe */
+      .product-image-container::before {
+        content: '';
+        position: absolute;
+        width: 200px;
+        height: 200px;
+        background: #f0f0f0;
+        border-radius: 50%;
+        z-index: 0;
+      }
+
+      .product-img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        z-index: 1;
+        filter: drop-shadow(0 15px 15px rgba(0, 0, 0, 0.2));
+        transition: transform 0.5s ease;
+      }
+
+      .product-card:hover .product-img {
+        transform: scale(1.1) rotate(-5deg);
+      }
+
+      .product-info {
+        text-align: left;
+      }
+
+      .product-category {
+        font-size: 0.8rem;
+        color: #888;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+
+      .product-name {
+        font-family: 'Roboto Condensed', sans-serif;
+        font-size: 1.8rem;
+        font-weight: 900;
+        font-style: italic;
+        color: var(--freesport-text-dark);
+        margin-bottom: 15px;
+        line-height: 1.1;
+      }
+
+      .price-block {
+        display: flex;
+        align-items: baseline;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .old-price {
+        font-size: 1.1rem;
+        color: #999;
+        text-decoration: line-through;
+        font-weight: 500;
+      }
+
+      .current-price {
+        font-size: 2rem;
+        color: var(--freesport-orange);
+        font-weight: 800;
+        font-family: 'Roboto Condensed', sans-serif;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .btn {
+        padding: 14px 24px;
+        border: none;
+        cursor: pointer;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        flex: 1;
+        font-family: 'Inter', sans-serif;
+        clip-path: polygon(10% 0, 100% 0, 100% 100%, 0% 100%, 0% 20%);
+      }
+
+      .btn-primary {
+        background-color: var(--freesport-orange);
+        color: var(--freesport-white);
+      }
+
+      .btn-primary:hover {
+        background-color: #e05e00;
+        transform: translateX(2px);
+        box-shadow: 0 5px 15px rgba(255, 107, 0, 0.4);
+      }
+
+      .btn-secondary {
+        background-color: #f0f0f0;
+        color: var(--freesport-text-dark);
+      }
+
+      .btn-secondary:hover {
+        background-color: #e0e0e0;
+      }
+
+      /* Animations */
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      /* Responsive */
+      @media (max-width: 900px) {
+        .freesport-deal-section {
+          flex-direction: column;
+          text-align: center;
+          padding: 40px 20px;
+        }
+
+        .deal-content {
+          padding-right: 0;
+          margin-bottom: 50px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .deal-product {
+          width: 100%;
+          max-width: 380px;
+          flex: none;
+        }
+
+        .section-title {
+          font-size: 3rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- FREESPORT PROMO COMPONENT -->
+    <section class="freesport-deal-section">
+      <!-- Left Side: Information -->
+      <div class="deal-content">
+        <div class="brand-logo">FREESPORT</div>
+        <h2 class="section-title">
+          ТОВАР ДНЯ
+          <span>ЛИМИТ</span>
+        </h2>
+        <p class="deal-desc">
+          Профессиональные беговые кроссовки с адаптивной амортизацией. Идеальный выбор для
+          марафонов и интенсивных тренировок в зале.
+        </p>
+
+        <div class="countdown-wrapper">
+          <div class="timer-label">До конца акции:</div>
+          <div class="timer-grid" id="timer">
+            <div class="timer-box">
+              <div class="timer-number" id="hours">08</div>
+              <div class="timer-text">Часов</div>
+            </div>
+            <div class="timer-box">
+              <div class="timer-number" id="minutes">45</div>
+              <div class="timer-text">Минут</div>
+            </div>
+            <div class="timer-box">
+              <div class="timer-number" id="seconds">12</div>
+              <div class="timer-text">Секунд</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side: Product Card -->
+      <div class="deal-product">
+        <div class="product-card">
+          <div class="discount-badge">-35%</div>
+
+          <div class="product-image-container">
+            <!-- Using a high-quality placeholder image of a sneaker -->
+            <img
+              src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+              alt="Nike Air Zoom Green"
+              class="product-img"
+            />
+          </div>
+
+          <div class="product-info">
+            <div class="product-category">Бег / Мужчины</div>
+            <h3 class="product-name">Nike Air Zoom SuperRep 2</h3>
+
+            <div class="price-block">
+              <span class="old-price">14 990 ₽</span>
+              <span class="current-price">9 740 ₽</span>
+            </div>
+
+            <div class="actions">
+              <button class="btn btn-secondary">В корзину</button>
+              <button class="btn btn-primary">Купить сейчас</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Timer Logic -->
+    <script>
+      function startTimer(duration, displayHours, displayMinutes, displaySeconds) {
+        let timer = duration,
+          hours,
+          minutes,
+          seconds;
+
+        const interval = setInterval(function () {
+          hours = parseInt(timer / 3600, 10);
+          minutes = parseInt((timer % 3600) / 60, 10);
+          seconds = parseInt(timer % 60, 10);
+
+          hours = hours < 10 ? '0' + hours : hours;
+          minutes = minutes < 10 ? '0' + minutes : minutes;
+          seconds = seconds < 10 ? '0' + seconds : seconds;
+
+          displayHours.textContent = hours;
+          displayMinutes.textContent = minutes;
+          displaySeconds.textContent = seconds;
+
+          if (--timer < 0) {
+            // Reset timer for demo loop
+            timer = duration;
+          }
+        }, 1000);
+      }
+
+      window.onload = function () {
+        // Set timer for 8 hours 45 minutes (in seconds)
+        const timeInSeconds = 8 * 60 * 60 + 45 * 60;
+
+        const elHours = document.querySelector('#hours');
+        const elMinutes = document.querySelector('#minutes');
+        const elSeconds = document.querySelector('#seconds');
+
+        startTimer(timeInSeconds, elHours, elMinutes, elSeconds);
+      };
+    </script>
+  </body>
+</html>
+
+Технологичный атлетизм Ультрасовременный драйв

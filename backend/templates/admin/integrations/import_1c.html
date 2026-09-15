@@ -1,0 +1,324 @@
+{% extends "admin/base_site.html" %} {% load i18n static %} {% block extrahead %} {{ block.super }}
+<style>
+  .import-form-container {
+    max-width: 900px;
+    margin: 20px auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .import-form-container h1 {
+    margin-top: 0;
+    color: #417690;
+    font-size: 26px;
+    margin-bottom: 10px;
+  }
+
+  .import-description {
+    margin-bottom: 30px;
+    color: #666;
+    font-size: 14px;
+  }
+
+  .radio-group {
+    margin: 20px 0;
+  }
+
+  .radio-item {
+    display: block;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #417690;
+    transition: all 0.2s;
+  }
+
+  .radio-item:hover {
+    background: #e9ecef;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .radio-item input[type="radio"] {
+    display: none;
+  }
+
+  .radio-item label {
+    display: block;
+    cursor: pointer;
+    margin: 0;
+    position: relative;
+    padding-left: 35px;
+  }
+
+  .radio-item label:before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 24px;
+    height: 24px;
+    border: 2px solid #417690;
+    border-radius: 50%;
+    background: white;
+  }
+
+  .radio-item input[type="radio"]:checked + label:before {
+    background: #417690;
+    box-shadow: inset 0 0 0 4px white;
+  }
+
+  .radio-label-header {
+    display: block;
+    font-size: 17px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+  }
+
+  .radio-description {
+    display: block;
+    color: #666;
+    font-size: 13px;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+
+  .radio-files {
+    display: block;
+    color: #888;
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  .warning-badge {
+    display: inline-block;
+    background: #fff3cd;
+    color: #856404;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 6px;
+    border: 1px solid #ffeaa7;
+  }
+
+  .form-actions {
+    margin-top: 35px;
+    padding-top: 25px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    gap: 15px;
+  }
+
+  .btn-primary {
+    background-color: #417690;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .btn-primary:hover {
+    background-color: #2e5266;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover {
+    background-color: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .info-box {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 25px;
+    color: #0c5460;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .info-box strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+
+  .btn-primary:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none;
+  }
+
+  .btn-primary:disabled:hover {
+    transform: none;
+    box-shadow: none;
+  }
+</style>
+<script>
+  // Предотвращение двойного клика на кнопке импорта
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form");
+    const submitButton = document.querySelector('button[type="submit"]');
+    const radioButtons = document.querySelectorAll('input[name="import_type"]');
+
+    if (form && submitButton) {
+      // Валидация перед отправкой
+      form.addEventListener("submit", function (e) {
+        const selectedRadio = document.querySelector(
+          'input[name="import_type"]:checked',
+        );
+        if (!selectedRadio) {
+          e.preventDefault();
+          alert("⚠️ Выберите тип импорта");
+          return false;
+        }
+
+        // Блокируем кнопку после первого клика
+        submitButton.disabled = true;
+        submitButton.textContent = "⏳ Запуск импорта...";
+
+        // На случай если форма не отправится, разблокируем через 5 секунд
+        setTimeout(function () {
+          submitButton.disabled = false;
+          submitButton.textContent = "▶️ Запустить импорт";
+        }, 5000);
+      });
+
+      // Подсветка выбранного radio item
+      radioButtons.forEach(function (radio) {
+        radio.addEventListener("change", function () {
+          // Убираем выделение со всех элементов
+          document.querySelectorAll(".radio-item").forEach(function (item) {
+            item.style.borderLeftColor = "#417690";
+            item.style.background = "#f8f9fa";
+          });
+
+          // Подсвечиваем выбранный
+          if (this.checked) {
+            const parent = this.closest(".radio-item");
+            parent.style.borderLeftColor = "#28a745";
+            parent.style.background = "#e8f5e9";
+          }
+        });
+      });
+    }
+  });
+</script>
+{% endblock %} {% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo;
+  <a href="{% url 'admin:app_list' app_label='integrations' %}">ИНТЕГРАЦИИ</a>
+  &rsaquo; Импорт из 1С
+</div>
+{% endblock %} {% block content %}
+<div class="import-form-container">
+  <h1>🚀 Импорт данных из 1С</h1>
+  <p class="import-description">
+    Выберите тип данных для импорта из системы 1С. Импорт будет выполнен в
+    фоновом режиме, и вы сможете отслеживать его прогресс на странице "Сессии
+    импорта".
+  </p>
+
+  <div class="info-box">
+    <strong>ℹ️ Важная информация:</strong>
+    После запуска импорта вы будете автоматически перенаправлены на страницу
+    сессий импорта, где сможете в реальном времени отслеживать прогресс
+    выполнения задачи.
+  </div>
+
+  <div
+    class="info-box"
+    style="background: #fff3cd; border-color: #ffeaa7; color: #856404"
+  >
+    <strong>⚠️ Требования к данным:</strong>
+    Перед запуском импорта убедитесь, что данные выгружены из 1С в
+    директорию:<br />
+    <code
+      style="
+        background: #fff;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+      "
+      >data/import_1c/</code
+    >
+    <br /><br />
+    <strong>Требуемая структура директорий:</strong>
+    <ul style="margin: 10px 0 0 20px">
+      <li>
+        <strong>Для полного каталога:</strong> goods/, offers/, prices/, rests/,
+        priceLists/
+      </li>
+      <li><strong>Для изображений:</strong> goods/import_files/</li>
+      <li><strong>Для остатков:</strong> rests/</li>
+      <li><strong>Для цен:</strong> prices/</li>
+      <li><strong>Для клиентов:</strong> contragents/</li>
+    </ul>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="radio-group">
+      {% for import_type in import_types %}
+      <div class="radio-item">
+        <input
+          type="radio"
+          name="import_type"
+          value="{{ import_type.value }}"
+          id="import_{{ import_type.value }}"
+        />
+        <label for="import_{{ import_type.value }}">
+          <span class="radio-label-header">
+            {% if import_type.value == "catalog" %}📦{% elif import_type.value == "images" %}🖼️{% elif import_type.value == "stocks" %}📊{% elif import_type.value == "prices" %}💰{% else %}👥{% endif %} {{ import_type.label }}
+          </span>
+          <span class="radio-description">{{ import_type.description }}</span>
+          <span class="radio-files">Файлы: {{ import_type.files }}</span>
+          {% if import_type.requires_catalog %}
+          <span class="warning-badge"
+            >⚠️ Требуется предварительный импорт каталога</span
+          >
+          {% endif %}
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">▶️ Запустить импорт</button>
+      <a
+        href="{% url 'admin:integrations_session_changelist' %}"
+        class="btn-secondary"
+      >
+        ❌ Отмена
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}
