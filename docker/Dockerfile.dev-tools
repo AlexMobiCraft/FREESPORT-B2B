@@ -1,0 +1,42 @@
+# Lightweight Docker image для утилит разработки FREESPORT
+# Используется для быстрого запуска code formatting, linting, testing
+
+FROM python:3.11-slim
+
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Установка рабочей директории
+WORKDIR /app
+
+# Обновление pip
+RUN pip install --no-cache-dir --upgrade pip
+
+# Установка утилит разработки
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir \
+    black==23.11.0 \
+    isort==5.12.0 \
+    flake8==6.1.0 \
+    mypy==1.7.1 \
+    pytest==7.4.3 \
+    pytest-cov==4.1.0 \
+    pytest-django==4.7.0
+
+# Копирование исходного кода для анализа
+COPY backend/ /app/
+
+# Создание non-root пользователя
+RUN useradd --create-home --shell /bin/bash dev
+RUN chown -R dev:dev /app
+USER dev
+
+# Установка переменных окружения
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Команда по умолчанию
+CMD ["bash"]
