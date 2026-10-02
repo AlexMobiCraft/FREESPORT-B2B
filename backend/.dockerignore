@@ -1,0 +1,71 @@
+# Игнорирование файлов для Docker сборки backend
+.git
+.gitignore
+README.md
+Dockerfile*
+.dockerignore
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.env
+.env.*
+.venv
+venv/
+.venv/
+
+# Локальные настройки
+local_settings.py
+.local
+
+# IDE файлы
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Тестовые и временные файлы
+htmlcov/
+.coverage
+test-reports/
+*.db
+*.sqlite3
+
+# Media и статические файлы
+media/
+staticfiles/
+static_collected/
+
+# Логи
+*.log
+logs/
+
+# Кеш
+.cache/
+.pytest_cache/
+
+# Node модули (если есть)
+node_modules/
+
+# Временные файлы ОС
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -1,0 +1,84 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo;
+  <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo;
+  <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; Связывание с контрагентом 1С
+</div>
+{% endblock %}
+
+{% block content %}
+<fieldset class="module aligned">
+  <h2>Данные заявителя</h2>
+  <div class="form-row"><label>Email:</label> {{ target.email|default:"—" }}</div>
+  <div class="form-row"><label>ИНН:</label> {{ target.tax_id|default:"—" }}</div>
+  <div class="form-row"><label>Название компании:</label> {{ target.company_name|default:"—" }}</div>
+  <div class="form-row"><label>Роль:</label> {{ target.get_role_display }}</div>
+  <div class="form-row"><label>Дата регистрации:</label> {{ target.created_at }}</div>
+</fieldset>
+
+<p style="margin-top: 1em;">
+  <strong>Внимание: действие необратимо.</strong> Идентификаторы 1С и реквизиты
+  выбранного контрагента будут перенесены на аккаунт заявителя, а исходная
+  запись 1С деактивирована. Обратной операции «Отвязать» нет. Email, пароль и
+  роль заявителя не меняются.
+</p>
+
+<form action="" method="post">
+  {% csrf_token %}
+  <input type="hidden" name="{{ action_checkbox_name }}" value="{{ target.pk }}" />
+  <input type="hidden" name="action" value="link_1c_customer" />
+  <input type="hidden" name="apply" value="1" />
+
+  <fieldset class="module aligned">
+    <h2>Контрагенты 1С с ИНН {{ target.tax_id|default:"—" }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Выбор</th>
+          <th scope="col">ID в 1С</th>
+          <th scope="col">Название</th>
+          <th scope="col">Юридический адрес</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for candidate in candidates %}
+        <tr>
+          <td>
+            {# Значение радиокнопки несёт и pk источника, и показанный onec_id: #}
+            {# оба сверяются с состоянием под блокировкой, поэтому двойная    #}
+            {# отправка и устаревшая вкладка отклоняются. Один элемент вместо #}
+            {# пары «радио + скрытое поле» — форма работает и без JavaScript. #}
+            <input
+              type="radio"
+              name="candidate"
+              id="candidate-{{ candidate.pk }}"
+              value="{{ candidate.pk }}:{{ candidate.onec_id|default:'' }}"
+              required
+            />
+          </td>
+          <td><label for="candidate-{{ candidate.pk }}">{{ candidate.onec_id|default:"—" }}</label></td>
+          <td>{{ candidate.company_name|default:candidate.full_name|default:"—" }}</td>
+          <td>
+            {% if candidate.company %}{{ candidate.company.legal_address|default:"—" }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" class="default deletelink" value="Связать с контрагентом 1С" />
+    {# Возврат на тот же список: фильтр «Кандидат 1С», страница и поиск #}
+    {# сохраняются — иначе менеджер с очередью в десятки заявок теряет #}
+    {# контекст на каждой отмене. #}
+    <a href="{{ request.get_full_path }}" class="button cancel-link">Отмена</a>
+  </div>
+</form>
+{% endblock %}

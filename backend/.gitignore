@@ -1,0 +1,68 @@
+# Django Backend specific .gitignore
+
+# Database
+*.sqlite3
+*.db
+
+# Django migrations (keep structure, ignore generated)
+# migrations/*.py
+# !migrations/__init__.py
+
+# Django static files
+/static/*
+!/static/.gitkeep
+/staticfiles/
+/media/
+
+# Django settings with secrets
+local_settings.py
+settings_local.py
+
+# Backups
+backup_db/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+backend\celerybeat-schedule.dir
+backend\celerybeat-schedule.dat
+backend\celerybeat-schedule.bak
+
+# Django collected static files
+/collected_static/
+
+# Test databases
+test_*.db
+
+# Backend specific logs
+django.log
+celery.log
+
+# Python virtual environments
+venv/
+env/
+.venv/
+
+# PyCharm
+.idea/
+
+# pytest
+.pytest_cache/
+!pytest.ini
+
+# mypy
+.mypy_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# IPython
+.ipynb_checkpoints/
+
+# Django debug toolbar
+.debug_toolbar/
+
+# Local data files
+*.json.backup
+*.xml.backup
