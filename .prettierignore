@@ -1,0 +1,14 @@
+# Django templates — содержат Django-теги {% %}, {{ }},
+# которые Prettier разбивает по строкам и ломает.
+backend/templates/**/*.html
+backend/apps/**/templates/**/*.html
+docs/
+.pytest_cache/
+_bmad-output/
+_bmad/
+.agents/
+.claude/
+.kilo/
+.obsidian/
+.windsurf/skills/
+backend/data/
