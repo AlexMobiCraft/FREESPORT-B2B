@@ -1,0 +1,152 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} change-form{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo;
+  <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo;
+  <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo;
+  <a href="{{ change_url }}">{{ target.email|default:target.pk }}</a>
+  &rsaquo; Подтверждение заявки
+</div>
+{% endblock %}
+
+{% block content %}
+{# Все значения ниже — данные заявителя и выгрузки 1С: выводятся только через #}
+{# автоэкранирование шаблона, без |safe.                                        #}
+<fieldset class="module aligned">
+  <h2>Заявка</h2>
+  <div class="form-row"><label>Email:</label> {{ target.email|default:"—" }}</div>
+  <div class="form-row"><label>ФИО:</label> {{ target.full_name|default:"—" }}</div>
+  <div class="form-row"><label>Телефон:</label> {{ target.phone|default:"—" }}</div>
+  <div class="form-row"><label>Компания:</label> {{ target.company_name|default:"—" }}</div>
+  <div class="form-row"><label>ИНН:</label> {{ target.tax_id|default:"—" }}</div>
+  <div class="form-row"><label>Страна:</label> {{ target.get_country_display|default:"—" }}</div>
+  <div class="form-row"><label>Дата регистрации:</label> {{ target.created_at }}</div>
+  <div class="form-row"><label>Роль:</label> {{ target.get_role_display }}</div>
+  <div class="form-row"><label>Статус:</label> {{ target.get_verification_status_display }}</div>
+</fieldset>
+
+{% if not is_decision %}
+<p class="help">
+  Аккаунт уже верифицирован, но не связан с 1С. Подтверждение только свяжет его
+  с контрагентом 1С и применит роль: статус верификации и активность аккаунта
+  не изменятся.
+</p>
+{% endif %}
+
+<form action="" method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+
+  <fieldset class="module aligned">
+    {% if candidate_rows %}
+    <h2>Контрагенты 1С с ИНН {{ target.tax_id|default:"—" }}</h2>
+    {% if form.candidate.errors %}{{ form.candidate.errors }}{% endif %}
+    <p class="help">
+      Действие необратимо: идентификаторы и реквизиты выбранного контрагента
+      перенесутся на аккаунт заявителя, а запись 1С будет деактивирована.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Выбор</th>
+          <th scope="col">Наименование</th>
+          <th scope="col">ИНН</th>
+          <th scope="col">КПП</th>
+          <th scope="col">Юридический адрес</th>
+          <th scope="col">Вид цен</th>
+          <th scope="col">Роль по виду цен</th>
+          <th scope="col">ID в 1С</th>
+          <th scope="col">Код клиента</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in candidate_rows %}
+        <tr>
+          <td>
+            <input
+              type="radio"
+              name="candidate"
+              id="candidate-{{ row.candidate.pk }}"
+              value="{{ row.value }}"
+              {% if row.checked %}checked{% endif %}
+              required
+            />
+          </td>
+          <td>
+            <label for="candidate-{{ row.candidate.pk }}">
+              {{ row.candidate.company_name|default:row.candidate.full_name|default:"—" }}
+            </label>
+          </td>
+          <td>{{ row.candidate.tax_id|default:"—" }}</td>
+          <td>{{ row.kpp|default:"—" }}</td>
+          <td>{{ row.legal_address }}</td>
+          <td>{{ row.price_type_name|default:"—" }}</td>
+          <td>{{ row.role_label|default:"не определена" }}</td>
+          <td>{{ row.candidate.onec_id|default:"—" }}</td>
+          <td>{{ row.candidate.customer_code|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% elif is_linked %}
+    <h2>Привязка к 1С</h2>
+    <div class="form-row"><label>ID в 1С:</label> {{ target.onec_id|default:target.onec_guid|default:"—" }}</div>
+    <div class="form-row"><label>Вид цен:</label> {{ linked_price_type_name|default:"—" }}</div>
+    {% elif requires_without_1c %}
+    <h2>Контрагент в 1С не найден</h2>
+    <p class="errornote">
+      Контрагентов 1С с ИНН {{ target.tax_id|default:"—" }} нет. Если подтвердить
+      заявку без привязки, контрагент будет создан в 1С при первом заказе.
+    </p>
+    {% if form.confirm_without_1c.errors %}{{ form.confirm_without_1c.errors }}{% endif %}
+    <div class="form-row">
+      <label for="id_confirm_without_1c">
+        {{ form.confirm_without_1c }} Подтвердить без привязки к 1С
+      </label>
+    </div>
+    {% endif %}
+  </fieldset>
+
+  <fieldset class="module aligned">
+    <h2>Роль</h2>
+    {% if fixed_role_label %}
+    <div class="form-row">
+      <label>Роль:</label> {{ fixed_role_label }} — из соглашения 1С: {{ fixed_price_type|default:"—" }}
+    </div>
+    {% elif role_choice_needed %}
+    {% if form.role.errors %}{{ form.role.errors }}{% endif %}
+    <div class="form-row">
+      <label for="id_role">Роль:</label> {{ form.role }}
+      {% if candidate_rows %}
+      <p class="help">
+        Применяется, только если вид цен выбранного контрагента не определил
+        роль. Иначе роль берётся из соглашения 1С (столбец «Роль по виду цен»).
+      </p>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="help">Роль берётся из соглашения 1С выбранного контрагента (столбец «Роль по виду цен»).</p>
+    {% endif %}
+  </fieldset>
+
+  <fieldset class="module aligned">
+    {% if form.confirm.errors %}{{ form.confirm.errors }}{% endif %}
+    <div class="form-row">
+      <label for="id_confirm">{{ form.confirm }} Подтвердить</label>
+    </div>
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" class="default" name="_verify" value="Подтвердить" />
+    {% if is_decision %}
+    <input type="submit" class="deletelink" name="_reject" value="Отклонить" formnovalidate />
+    {% endif %}
+    <a href="{{ change_url }}" class="button cancel-link">Полная карточка</a>
+  </div>
+</form>
+{% endblock %}

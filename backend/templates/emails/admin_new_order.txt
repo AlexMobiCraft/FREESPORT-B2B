@@ -1,0 +1,34 @@
+НОВЫЙ ЗАКАЗ #{{ order.order_number }}
+======================================
+
+На сайте FREESPORT создан новый заказ.
+
+ИНФОРМАЦИЯ О ЗАКАЗЕ:
+--------------------
+Номер заказа: {{ order.order_number }}
+Клиент: {{ customer_name }}
+Email: {{ customer_email }}
+Телефон: {{ customer_phone }}
+Сумма заказа: {{ order.total_amount }} ₽
+
+ДОСТАВКА:
+---------
+Способ: {{ delivery_method }}
+Адрес: {{ order.delivery_address }}
+
+ТОВАРЫ В ЗАКАЗЕ:
+----------------
+{% for item in items %}
+- {{ item.product_name }} × {{ item.quantity }}: {{ item.total_price }} ₽
+{% endfor %}
+
+{% if order.notes %}
+КОММЕНТАРИЙ К ЗАКАЗУ:
+---------------------
+{{ order.notes }}
+{% endif %}
+
+Открыть заказ в админке: {{ admin_url }}
+
+---
+FREESPORT - Спортивные товары
