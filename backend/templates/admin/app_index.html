@@ -1,0 +1,9 @@
+{% extends "admin/app_index.html" %}
+{% comment %}
+  Надстройка над admin/app_index.html Django: рекурсивное расширение берёт
+  шаблон Django, а не этот файл. У страницы приложения (/supervisor/users/,
+  /manager/orders/) блок nav-sidebar пуст, как и у главных разделов, поэтому
+  руководителю пропадал бы блок «Разделы». Меню включается только при
+  supervisor_sections в контексте; остальным страница остаётся без него.
+{% endcomment %}
+{% block nav-sidebar %}{% if supervisor_sections %}{% include "admin/nav_sidebar.html" %}{% endif %}{% endblock %}
