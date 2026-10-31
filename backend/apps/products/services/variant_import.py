@@ -1,0 +1,3324 @@
+"""
+Сервисы для импорта ProductVariant из 1С
+
+Основной процессор импорта для новой архитектуры Product + ProductVariant:
+- goods.xml → Product (базовая информация, base_images)
+- offers.xml → ProductVariant (SKU, характеристики)
+- prices.xml → ProductVariant (цены)
+- rests.xml → ProductVariant (остатки)
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import re
+import uuid
+from decimal import Decimal
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, NotRequired, Sequence, TypedDict
+
+from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.db import IntegrityError, models, transaction
+from django.utils import timezone
+from django.utils.text import slugify
+
+from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID
+from apps.products.pricing_policy import PRICE_TYPE_ROLES, SPECIAL_PRICE_FIELD
+from apps.products.services import promo
+from apps.products.services.onec_admission import (
+    KIND_GROUP,
+    KIND_OFFER,
+    KIND_PRODUCT,
+    REASON_GROUP_MARKED,
+    REASON_NO_GROUP,
+    REASON_OFFER_MARKED,
+    REASON_OUTSIDE_TREE,
+    REASON_PRODUCT_MARKED,
+    REASON_UNKNOWN_GROUP,
+    ExclusionRegistry,
+    category_key,
+    compute_subtree,
+    first_blocked_reason,
+    load_db_category_tree,
+)
+
+if TYPE_CHECKING:
+    from apps.products.models import Product, ProductVariant
+
+logger = logging.getLogger("import_products")
+
+# Признак «без бренда» в goods.xml: 1С кладёт в свойство «Бренд» нулевой UUID.
+# Это не пропущенный маппинг, а штатное значение, поэтому импорт сводит его к
+# fallback-бренду («Без ТМ») через маппинг для этого же UUID.
+NO_BRAND_ONEC_ID = "00000000-0000-0000-0000-000000000000"
+NO_BRAND_ONEC_NAME = "Без бренда"
+
+# Legacy fallback-бренд: до Story 41.16 импорт создавал «No Brand» с этим slug.
+# Нужен только для обратной совместимости — существующая запись переиспользуется
+# и переименовывается, чтобы рядом не появился второй fallback-бренд.
+LEGACY_FALLBACK_BRAND_SLUG = "no-brand"
+LEGACY_FALLBACK_BRAND_NORMALIZED = "nobrand"
+
+
+# ============================================================================
+# TypedDict definitions for parsed data
+# ============================================================================
+
+
+class VariantOfferData(TypedDict, total=False):
+    """Данные варианта из offers.xml"""
+
+    id: str  # Составной ID: parent_id#variant_id
+    parent_id: str  # ID родительского Product
+    variant_id: str  # ID варианта
+    name: str
+    article: str  # SKU/Артикул
+    color_name: str
+    size_value: str
+    images: list[str]  # Пути к изображениям варианта
+
+
+class VariantPriceData(TypedDict):
+    """Данные цен варианта из prices.xml"""
+
+    id: str  # Составной ID: parent_id#variant_id
+    prices: list[dict[str, Any]]  # [{price_type_id, value}, ...]
+
+
+class VariantRestData(TypedDict):
+    """Данные остатков варианта из rests.xml"""
+
+    id: str  # Составной ID: parent_id#variant_id
+    warehouse_id: str
+    quantity: int
+
+
+class CategoryData(TypedDict, total=False):
+    """Данные категории из goods.xml"""
+
+    id: str
+    name: str
+    description: str
+    parent_id: str
+    is_deleted: bool
+
+
+class BrandData(TypedDict):
+    """Данные бренда из propertiesGoods.xml"""
+
+    id: str
+    name: str
+
+
+class PriceTypeData(TypedDict):
+    """Данные типа цены из prices.xml"""
+
+    onec_id: str
+    onec_name: str
+    product_field: str
+    is_deleted: NotRequired[bool]
+
+
+# ============================================================================
+# Helper functions
+# ============================================================================
+
+
+def parse_onec_id(onec_id: str) -> tuple[str, str]:
+    """
+    Парсинг составного onec_id из offers.xml
+
+    Args:
+        onec_id: Строка вида "parent-uuid#variant-uuid"
+
+    Returns:
+        Tuple (parent_id, variant_id)
+
+    Raises:
+        ValueError: Если формат ID некорректен
+
+    Example:
+        >>> parse_onec_id("12345678-abcd#87654321-dcba")
+        ("12345678-abcd", "87654321-dcba")
+    """
+    if "#" not in onec_id:
+        # Товар без вариантов - используем один ID для обоих
+        return onec_id, onec_id
+
+    parts = onec_id.split("#", 1)
+    if len(parts) != 2:
+        raise ValueError(f"Invalid onec_id format: {onec_id}")
+
+    return parts[0], parts[1]
+
+
+def parse_characteristics(characteristics: list[dict[str, str]]) -> dict[str, str]:
+    """
+    Парсинг характеристик товара из offers.xml
+
+    Извлекает color_name и size_value из списка характеристик.
+    Поддерживает различные названия полей из 1С.
+
+    Args:
+        characteristics: Список словарей {name, value}
+
+    Returns:
+        Dict с ключами 'color_name', 'size_value'
+    """
+    result = {"color_name": "", "size_value": ""}
+
+    # Маппинг названий характеристик из 1С на наши поля
+    color_names = {"цвет", "color", "окраска"}
+    # Убран "детский размер" — это булевый флаг, не размер
+    size_names = {"размер", "size", "размерtd"}
+
+    # Невалидные значения для размера (булевые флаги)
+    invalid_size_values = {"да", "нет", "yes", "no", "true", "false", "-"}
+
+    for char in characteristics:
+        name = char.get("name", "").lower().strip()
+        value = char.get("value", "").strip()
+
+        if not value or value == "-999 999 999,9" or value == "-999999999.9":
+            continue
+
+        if name in color_names:
+            result["color_name"] = value
+        elif name in size_names or name.startswith("размер_"):
+            # Фильтруем невалидные булевые значения
+            if value.lower() not in invalid_size_values:
+                result["size_value"] = value
+
+    return result
+
+
+def extract_size_from_name(name: str) -> str:
+    """
+    Извлечение размера из названия товара
+
+    Пример: "Кимоно для джиу джитсу (BJJ) BoyBo, BBJJ24, синий (А5 (2XL))"
+    Результат: "А5 (2XL)"
+
+    Args:
+        name: Название товара
+
+    Returns:
+        Извлечённый размер или пустая строка
+    """
+    # Паттерн для размера в скобках в конце названия
+    # Примеры: (42), (XL), (А5 (2XL)), (36-38)
+    pattern = r"\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*$"
+    match = re.search(pattern, name)
+    if match:
+        return match.group(1).strip()
+    return ""
+
+
+def extract_color_from_name(name: str) -> str:
+    """
+    Извлечение цвета из названия товара используя ColorMapping модель
+
+    Пример: "Боксерки BoyBo TITAN,IB-26 (одобрены ФБР), синий"
+    Результат: "синий"
+
+    Args:
+        name: Название товара
+
+    Returns:
+        Извлечённый цвет или пустая строка
+    """
+    from apps.products.models import ColorMapping
+
+    # Получаем цвета из ColorMapping модели
+    color_mappings = ColorMapping.objects.values_list("name", flat=True)
+
+    name_lower = name.lower()
+    for color in color_mappings:
+        if color.lower() in name_lower:
+            return color.capitalize()
+
+    return ""
+
+
+def normalize_image_path(image_path: str) -> str:
+    """
+    Нормализация пути к изображению.
+
+    Убирает префикс 'import_files/' если присутствует, чтобы обеспечить
+    единый стандарт путей между XML-импортом и импортом через админку.
+
+    Args:
+        image_path: Путь к изображению (относительный)
+
+    Returns:
+        Нормализованный путь без префикса 'import_files/'
+    """
+    if image_path.startswith("import_files/"):
+        return image_path[len("import_files/") :]
+    return image_path
+
+
+# ============================================================================
+# VariantImportProcessor - основной процессор импорта
+# ============================================================================
+
+
+class VariantImportProcessor:
+    """
+    Процессор для импорта ProductVariant из 1С
+
+    Workflow импорта:
+    1. goods.xml → Product (базовая информация, base_images)
+    2. offers.xml → ProductVariant (SKU, характеристики)
+    3. Default variants → ProductVariant для товаров без вариантов
+    4. prices.xml → ProductVariant (цены)
+    5. rests.xml → ProductVariant (остатки)
+    """
+
+    DEFAULT_PLACEHOLDER_IMAGE = "products/placeholder.png"
+    BATCH_SIZE = 500  # NFR4: batch processing
+
+    # AC7: сколько отброшенных размеров попадёт в текстовый report поимённо.
+    # Дальше растёт только счётчик: аномальная выгрузка не должна устроить
+    # лавину UPDATE по полю report.
+    SIZE_VALUE_REPORT_LIMIT = 50
+
+    def __init__(
+        self,
+        session_id: int,
+        batch_size: int = 500,
+        skip_validation: bool = False,
+    ):
+        """
+        Инициализация процессора
+
+        Args:
+            session_id: ID сессии импорта
+            batch_size: Размер batch для bulk операций (default 500)
+            skip_validation: Пропустить валидацию данных
+        """
+        from apps.products.models import ProductVariant
+
+        self.session_id = session_id
+        self.batch_size = batch_size
+        self.skip_validation = skip_validation
+
+        # Запасные каталоги изображений, проверяемые ПОФАЙЛОВО, когда файла нет
+        # в основном `base_dir`. Список задаёт вызывающая команда — она одна
+        # знает раскладку каталога обмена. Пустой список = прежнее поведение.
+        self.image_fallback_dirs: list[str] = []
+
+        # Исходники картинок, которые этот прогон реально потребил: копия лежит
+        # в хранилище, значит файл в каталоге обмена больше не нужен. Удаляет их
+        # команда (`_cleanup_files`) — она одна знает, какой каталог её, а какой
+        # принадлежит ручному корпусу `ONEC_DATA_DIR`, который трогать нельзя.
+        # Превью ниже порога размера сюда НЕ попадают: копии в хранилище у них
+        # не появляется никогда, и удалять их по этому признаку было бы нечестно.
+        self.consumed_image_sources: set[str] = set()
+
+        self.stats: dict[str, Any] = {
+            "products_created": 0,
+            "products_updated": 0,
+            "variants_created": 0,
+            "variants_updated": 0,
+            "default_variants_created": 0,
+            "prices_updated": 0,
+            "stocks_updated": 0,
+            "skipped": 0,
+            "errors": 0,
+            "warnings": 0,
+            # AC7: сколько «размеров» не влезло в поле и было отброшено.
+            # Инициализируем здесь, чтобы отличать «не сработало» от «код не задеплоен».
+            "size_value_dropped": 0,
+            "images_copied": 0,
+            # CAP-5: содержимое сменилось при том же имени файла — копия перезаписана.
+            "images_replaced": 0,
+            # Сумма трёх исходов ниже. Оставлена ради совместимости: значение уже
+            # лежит в `report_details` прошлых сессий и читается админкой.
+            "images_skipped": 0,
+            # Три исхода, которые раньше сливались в `images_skipped` и делали
+            # отчёт нечитаемым (tech-debt п. 24: на проде 11 186 в одной куче).
+            # Смысл у них разный вплоть до противоположного: «узнано по копии» —
+            # это картинка РАЗРЕШЕНА, а не отброшена.
+            "images_skipped_existing": 0,
+            "images_skipped_small": 0,
+            "images_resolved_from_copy": 0,
+            "images_errors": 0,
+            "attributes_linked": 0,
+            "attributes_missing": 0,
+            # Story 27.1: Keys for migrated methods
+            "brand_fallbacks": 0,
+            "attributes_missing_mapping": 0,
+            # Категории, погашенные по явному сигналу 1С (0 = таких в сессии не было)
+            "categories_deactivated": 0,
+            # Правило допуска (дерево якоря + пометки удаления). Счётчики считают
+            # изменения этой сессии: уже скрытый товар повторно не учитывается.
+            "skipped_products": 0,
+            "hidden_products": 0,
+            "restored_products": 0,
+            "recategorized_products": 0,
+            "skipped_variants": 0,
+            "hidden_variants": 0,
+            "restored_variants": 0,
+            # Выключенные на сайте товары, которые импорт включил обратно (приоритет 1С).
+            "reenabled_products": 0,
+        }
+
+        # Story 13.2+ Debugging: Track specific updated items
+        self.updated_products: list[str] = []
+        self.updated_variants: list[str] = []
+
+        # Кэш для оптимизации поиска
+        self._product_cache: dict[str, Any] = {}
+        self._variant_cache: dict[str, Any] = {}
+        self._stock_buffer: dict[str, dict[str, Any]] = {}
+        self._missing_products_logged: set[str] = set()
+        # AC7: сколько отброшенных размеров уже названо в текстовом report
+        self._size_value_reports: int = 0
+        # AC7: onec_id, у которых размер уже отбракован — счётчик считает
+        # варианты, а не встречи одного оффера в разных сегментах
+        self._size_value_dropped_logged: set[str] = set()
+        # AC7: лимит колонки неизменен в рамках процесса — снимаем один раз,
+        # а не на каждый из ~16 тыс. офферов полного каталога
+        self._size_value_max_length: int | None = ProductVariant._meta.get_field("size_value").max_length
+        self._missing_variants_logged: set[str] = set()
+        self._unmapped_price_types_logged: set[str] = set()
+        self._unknown_price_types_logged: set[str] = set()
+        # Маппинг parent_onec_id → vat_rate из goods.xml
+        self._product_vat_rates: dict[str, Decimal] = {}
+
+        # Fallback-бренд неизменен в рамках прогона: у ~60 % товаров бренда нет,
+        # и повторный поиск на каждый товар — это десятки тысяч лишних запросов.
+        self._fallback_brand: Any | None = None
+
+        # Фильтрация категорий (заполняется в process_categories)
+        self._category_filtering_active: bool = False
+        self._allowed_category_ids: set[str] = set()
+
+        # onec_id групп, которые 1С прислала в groups*.xml этой сессии и которые правило
+        # допуска отсекло (пометка удаления у группы или предка, вне поддерева якоря).
+        # Только их гасит deactivate_excluded_categories: отсутствие группы в XML ничего
+        # не значит — 1С шлёт groups*.xml частичными пакетами. Копится между файлами.
+        self._excluded_category_onec_ids: set[str] = set()
+
+        # --- Правило допуска товаров (дерево якоря + пометки удаления) ---
+        # Контекст строится один раз на сессию: либо в process_categories (в
+        # сессии есть groups*.xml), либо лениво из БД перед первым товаром.
+        self._admission_ready: bool = False
+        # ROOT_CATEGORY_NAME задан, но якоря нет ни в XML, ни в БД: классификация
+        # невозможна, сессия ничего не скрывает и не создаёт.
+        self._anchor_missing: bool = False
+        self._anchor_id: str | None = None
+        # Группы из groups*.xml сессии: Ид → (Ид родителя, пометка удаления).
+        # Для них дерево задаёт XML; БД — только для групп, которых в XML нет.
+        self._xml_groups: dict[str, tuple[str, bool]] = {}
+        # Сводное дерево групп (XML поверх БД): Ид → Ид родителя.
+        self._group_parent_of: dict[str, str] = {}
+        # Группы, исключающие себя и потомков из поддерева: Ид → причина.
+        self._blocked_groups: dict[str, str] = {}
+        # Из них — исключённые пометкой удаления (условие 3 правила допуска;
+        # действует и при пустом ROOT_CATEGORY_NAME).
+        self._marked_groups: dict[str, str] = {}
+        # Реестр исключённых Ид 1С — память между сессиями обмена.
+        self._registry = ExclusionRegistry()
+        # Товары, не созданные в ЭТОЙ сессии (в т.ч. при ненайденном якоре, когда
+        # реестр не ведётся): их предложения пропускаются без WARNING.
+        self._session_skipped_product_ids: set[str] = set()
+        self._category_cache: dict[str, Any] = {}
+        self._root_filter_warning_logged: bool = False
+        self._anchor_missing_reported: bool = False
+        self._last_admission_line: str = ""
+
+    # ========================================================================
+    # Helper methods
+    # ========================================================================
+
+    # Минимальный размер изображения в байтах (100KB)
+    MIN_IMAGE_SIZE_BYTES = 100 * 1024
+    # Резервный минимум — используется когда нет изображений >= 100KB
+    FALLBACK_MIN_IMAGE_SIZE_BYTES = 8 * 1024
+
+    def _resolve_image_source(self, base_dir: str, normalized_path: str) -> Path:
+        """Исходник картинки: основной каталог, иначе первый подходящий запасной.
+
+        Проверка пофайловая, а не покаталожная. Переходное окно выката оставляет
+        картинки одного товара в двух раскладках сразу, а ЧАСТИЧНОЕ разрешение
+        состава обрезает фото товара (`_import_base_images(mirror_composition=True)`):
+        выбор одного каталога на весь прогон терял бы половину картинок молча.
+
+        Возврат по умолчанию — путь в основном каталоге: так сообщения об
+        отсутствующем файле и опрос хранилища остаются прежними.
+        """
+        primary = Path(base_dir) / normalized_path
+        if primary.exists() or not self.image_fallback_dirs:
+            return primary
+
+        for fallback_dir in self.image_fallback_dirs:
+            candidate = Path(fallback_dir) / normalized_path
+            if candidate.exists():
+                return candidate
+
+        return primary
+
+    def _build_destination_path(self, image_path: str, destination_prefix: str) -> str:
+        """
+        Собирает путь копии изображения в хранилище.
+
+        Args:
+            image_path: НОРМАЛИЗОВАННЫЙ путь изображения (без префикса 'import_files/').
+                Подкаталог берётся из первого сегмента пути, поэтому на сыром пути
+                из XML он выродился бы в 'import_files' и целевые пути разъехались
+                бы у всего каталога.
+            destination_prefix: Префикс директории назначения ('base' или 'variants')
+
+        Returns:
+            Относительный путь копии в default_storage
+        """
+        filename = Path(image_path).name
+        subdir = image_path.split("/")[0] if "/" in image_path else ""
+        if subdir:
+            return f"products/{destination_prefix}/{subdir}/{filename}"
+        return f"products/{destination_prefix}/{filename}"
+
+    def _stored_image_exists(self, destination_path: str) -> bool:
+        """Проверяет наличие уже перенесённой копии изображения в хранилище."""
+        from django.core.files.storage import default_storage
+
+        try:
+            return bool(default_storage.exists(destination_path))
+        except OSError:
+            return False
+
+    def _get_stored_image_size(self, destination_path: str) -> int | None:
+        """
+        Размер уже перенесённой копии в хранилище.
+
+        Returns:
+            Размер в байтах или None, если хранилище его не отдаёт.
+        """
+        from django.core.files.storage import default_storage
+
+        try:
+            return default_storage.size(destination_path)
+        except (OSError, NotImplementedError):
+            return None
+
+    def _get_effective_min_size(self, image_paths: list[str], base_dir: str, destination_prefix: str) -> int:
+        """
+        Определяет эффективный минимальный размер изображения.
+
+        Если среди image_paths есть хотя бы одно изображение >= MIN_IMAGE_SIZE_BYTES,
+        возвращает MIN_IMAGE_SIZE_BYTES. Иначе возвращает FALLBACK_MIN_IMAGE_SIZE_BYTES,
+        чтобы не оставлять товар/вариант вообще без изображений.
+
+        Размер берётся у фактически доступного файла: исходника из выгрузки либо,
+        если 1С уже подчистила import_files, у перенесённой копии в хранилище.
+        Без этого после подчистки порог падал бы до резервного и отсеянные ранее
+        мелкие превью возвращались бы в состав.
+        """
+        for image_path in image_paths:
+            normalized_path = normalize_image_path(image_path)
+            source_path = self._resolve_image_source(base_dir, normalized_path)
+            try:
+                if source_path.exists():
+                    if source_path.stat().st_size >= self.MIN_IMAGE_SIZE_BYTES:
+                        return self.MIN_IMAGE_SIZE_BYTES
+                    continue
+            except OSError:
+                continue
+
+            # Хранилище опрашивается СТРОГО в ветке отсутствующего исходника:
+            # в существующих тестах импорта default_storage подменяется моком,
+            # и безусловный вызов size() вернул бы мок вместо числа.
+            destination_path = self._build_destination_path(normalized_path, destination_prefix)
+            if not self._stored_image_exists(destination_path):
+                continue
+            copy_size = self._get_stored_image_size(destination_path)
+            if copy_size is not None and copy_size >= self.MIN_IMAGE_SIZE_BYTES:
+                return self.MIN_IMAGE_SIZE_BYTES
+        return self.FALLBACK_MIN_IMAGE_SIZE_BYTES
+
+    # Исходы, попадающие в текстовый отчёт сессии. Порядок фиксирован: по нему
+    # строится строка, на которую вешаются тесты и грепы по проду.
+    IMAGE_OUTCOMES = (
+        ("images_copied", "скопировано"),
+        ("images_replaced", "заменено"),
+        ("images_skipped_existing", "уже в хранилище"),
+        ("images_skipped_small", "отсеяно по размеру"),
+        ("images_resolved_from_copy", "узнано по копии"),
+        ("images_errors", "ошибок"),
+    )
+
+    # Счётчики правила допуска в порядке итоговой строки отчёта.
+    ADMISSION_COUNTERS = (
+        "skipped_products",
+        "skipped_variants",
+        "hidden_products",
+        "hidden_variants",
+        "restored_products",
+        "restored_variants",
+        "recategorized_products",
+        "reenabled_products",
+    )
+
+    def admission_report_line(self) -> str:
+        """Итоговая строка правила допуска для текстового отчёта сессии.
+
+        Пустая строка, если сессия никого не исключила и не вернула: сегменты
+        цен и остатков без исключённых позиций не должны получать шум в отчёте.
+        """
+        if not any(self.stats.get(key) for key in self.ADMISSION_COUNTERS):
+            return ""
+
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None) or "дерева"
+        stats = self.stats
+        return (
+            f"Вне {root_category_name} / к удалению: "
+            f"не создано {stats['skipped_products']} товаров / {stats['skipped_variants']} вариантов, "
+            f"скрыто {stats['hidden_products']} / {stats['hidden_variants']}, "
+            f"возвращено {stats['restored_products']} / {stats['restored_variants']}, "
+            f"перенесено в категорию группы {stats['recategorized_products']}, "
+            f"включено выключенных {stats['reenabled_products']}"
+        )
+
+    def log_admission_summary(self) -> None:
+        """Записать итог правила допуска в отчёт сессии после шага импорта.
+
+        `report_details` сохраняется только при успешном завершении, поэтому
+        строка пишется после каждого шага: по упавшей сессии тоже видно, сколько
+        позиций она успела исключить. Повтор той же строки не пишется.
+        """
+        line = self.admission_report_line()
+        if not line or line == self._last_admission_line:
+            return
+        self._last_admission_line = line
+        self.log_progress(line)
+
+    def _count_image_skip(self, outcome: str) -> None:
+        """Учесть исход-«пропуск» и детально, и в общей сумме.
+
+        `images_skipped` остаётся суммой трёх детальных счётчиков: значение уже
+        лежит в `report_details` прошлых сессий и читается админкой, и менять
+        его смысл задним числом нельзя.
+        """
+        self.stats[outcome] += 1
+        self.stats["images_skipped"] += 1
+
+    def image_report_line(self) -> str:
+        """Строка про изображения для текстового отчёта сессии.
+
+        До этого числа жили только в JSONB `report_details`, а `images_skipped`
+        смешивал три разных исхода — оператор видел одну кучу (на проде 11 186)
+        и не мог сказать, сколько фото отброшено, а сколько просто узнано по уже
+        перенесённой копии. Пустая строка для прогонов без картинок: сегменты
+        остатков и цен не должны получать шумную строку в отчёте.
+        """
+        if not any(self.stats.get(key) for key, _ in self.IMAGE_OUTCOMES):
+            return ""
+
+        parts = ", ".join(f"{label} {self.stats.get(key, 0)}" for key, label in self.IMAGE_OUTCOMES)
+        return f"Изображения: {parts}"
+
+    def _save_image_if_not_exists(
+        self,
+        source_path: Path,
+        image_path: str,
+        destination_prefix: str,
+        min_size_bytes: int | None = None,
+    ) -> str | None:
+        """
+        Helper метод для сохранения изображения если оно еще не существует
+
+        Args:
+            source_path: Путь к исходному файлу изображения
+            image_path: Относительный путь изображения из XML
+            destination_prefix: Префикс директории назначения ('base' или 'variants')
+            min_size_bytes: Минимальный размер файла; если None — использует MIN_IMAGE_SIZE_BYTES
+
+        Returns:
+            Путь к сохраненному файлу или None если файл не найден/ошибка/слишком мал
+        """
+        from django.conf import settings
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        effective_min = min_size_bytes if min_size_bytes is not None else self.MIN_IMAGE_SIZE_BYTES
+
+        # Целевой путь вычисляется ДО проверки исходника: без него нельзя узнать,
+        # что картинка уже перенесена в хранилище прошлым прогоном.
+        destination_path = self._build_destination_path(image_path, destination_prefix)
+        subdir = image_path.split("/")[0] if "/" in image_path else ""
+
+        if not source_path.exists():
+            # Исходник уже убран — как самой 1С, так и уборкой потреблённого
+            # ниже. goods.xml с теми же товарами приходит снова, и уже
+            # перенесённая копия — не потеря файла, иначе каждый прогон выдаёт
+            # сотни ложных Image not found.
+            if self._stored_image_exists(destination_path):
+                copy_size = self._get_stored_image_size(destination_path)
+                if copy_size is not None and copy_size < effective_min:
+                    # Отсев по размеру, просто замеренный на копии, а не на
+                    # исходнике: исход тот же, что и у мелкого превью ниже.
+                    self._count_image_skip("images_skipped_small")
+                    logger.debug(
+                        f"Stored image too small, skipping: {destination_path} "
+                        f"({copy_size / 1024:.1f}KB < {effective_min // 1024}KB)"
+                    )
+                    return None
+                # Картинка РАЗРЕШЕНА копией, а не отброшена. На проде это самый
+                # частый исход, и в общей куче `images_skipped` он читался как
+                # потеря — отсюда отдельный счётчик.
+                self._count_image_skip("images_resolved_from_copy")
+                return destination_path
+
+            logger.warning(f"Image not found: {source_path}")
+            self.stats["images_errors"] += 1
+            return None
+
+        file_size = source_path.stat().st_size
+        if file_size < effective_min:
+            size_kb = file_size / 1024
+            logger.debug(f"Image too small, skipping: {source_path} " f"({size_kb:.1f}KB < {effective_min // 1024}KB)")
+            self._count_image_skip("images_skipped_small")
+            return None
+
+        # CAP-5. Решение «копировать или пропустить» больше не принимается по
+        # одному лишь имени файла. Имя детерминировано парой GUID товара и
+        # картинки, поэтому замена СОДЕРЖИМОГО снимка в 1С без смены GUID
+        # оставляла на сайте старую версию — молча, без ошибок и следов в
+        # отчёте. Сверяем размер: это дёшево (хранилище отдаёт его одним
+        # вызовом) и ловит подавляющее большинство реальных замен.
+        replacing = False
+        if default_storage.exists(destination_path):
+            stored_size = self._get_stored_image_size(destination_path)
+
+            if stored_size is None or stored_size == file_size:
+                # Размер совпал либо хранилище его не отдаёт — считаем копию
+                # актуальной. Побайтовое сравнение здесь стоило бы чтения всего
+                # каталога на каждом прогоне (6,4 ГБ на проде) ради случая,
+                # когда подменённый снимок весит ровно столько же.
+                self._count_image_skip("images_skipped_existing")
+                self.consumed_image_sources.add(str(source_path))
+                return destination_path
+
+            # Размеры разошлись — 1С прислала другое содержимое под тем же
+            # именем. `default_storage.save` на занятый путь завёл бы файл с
+            # суффиксом, а карточка осталась бы на старом, поэтому копию
+            # удаляем и пишем заново.
+            try:
+                default_storage.delete(destination_path)
+                replacing = True
+            except Exception as exc:
+                logger.warning(f"Failed to delete stale image copy {destination_path}: {exc}")
+                self._count_image_skip("images_skipped_existing")
+                self.consumed_image_sources.add(str(source_path))
+                return destination_path
+
+        # Создание директории
+        if subdir:
+            subdir_path = os.path.join(settings.MEDIA_ROOT, "products", destination_prefix, subdir)
+            os.makedirs(subdir_path, exist_ok=True)
+
+        # Копирование файла
+        try:
+            with open(source_path, "rb") as f:
+                saved_path = default_storage.save(destination_path, ContentFile(f.read()))
+            self.stats["images_replaced" if replacing else "images_copied"] += 1
+            if replacing:
+                logger.info(
+                    f"Image content replaced under the same name: {destination_path} "
+                    f"({stored_size} -> {file_size} bytes)"
+                )
+            self.consumed_image_sources.add(str(source_path))
+            return saved_path
+        except Exception as e:
+            logger.error(f"Error saving image {image_path}: {e}")
+            self.stats["images_errors"] += 1
+            return None
+
+    # ========================================================================
+    # Task 1: Рефакторинг парсера goods.xml (AC: 1)
+    # ========================================================================
+
+    def process_product_from_goods(
+        self,
+        goods_data: dict[str, Any],
+        base_dir: str | None = None,
+        skip_images: bool = False,
+    ) -> Any | None:
+        """
+        Создание/обновление Product из goods.xml (AC1)
+
+        Создаёт только базовую информацию Product:
+        - name, slug, brand, category, description
+        - base_images (Hybrid подход)
+        - НЕ записывает цены/остатки (перенесены в ProductVariant)
+
+        Args:
+            goods_data: Данные товара из XMLDataParser.parse_goods_xml()
+            base_dir: Базовая директория для изображений
+            skip_images: Пропустить импорт изображений
+
+        Returns:
+            Product instance или None при ошибке
+        """
+        from apps.products.models import Brand, Brand1CMapping, Category, Product
+
+        try:
+            parent_id = goods_data.get("id")
+            if not parent_id:
+                self._log_error("Missing parent_id in goods_data", goods_data)
+                return None
+
+            # Ensure types
+            parent_id = str(parent_id)
+            brand_id = str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
+
+            logger.info(f"Processing product from goods.xml: {parent_id}")
+
+            # Сохраняем ставку НДС для последующего использования при создании вариантов
+            vat_rate = goods_data.get("vat_rate")
+            if vat_rate is not None:
+                vat_rate = Decimal(str(vat_rate))
+                goods_data["vat_rate"] = vat_rate
+                self._product_vat_rates[parent_id] = vat_rate
+
+            # `parent_onec_id` не уникален: одному Ид 1С могут соответствовать
+            # несколько Product, и правило допуска применяется ко всем.
+            matches = list(
+                Product.objects.filter(models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)).select_related(
+                    "category"
+                )
+            )
+
+            self._ensure_admission_context()
+
+            if self._anchor_missing:
+                # Классифицировать нечем: существующее обновляется как раньше,
+                # новое не создаётся, ничего не скрывается.
+                if matches:
+                    return self._update_existing_product(matches[0], goods_data, base_dir, skip_images)
+                self._skip_new_product(parent_id, "якорь не найден")
+                return None
+
+            rejection_reason = self._product_rejection_reason(goods_data)
+            if rejection_reason:
+                self._reject_product(parent_id, goods_data, matches, rejection_reason)
+                return None
+
+            # Товар допущен: снимаем исключение и возвращаем скрытое импортом.
+            self._registry.discard(parent_id, KIND_PRODUCT)
+            self._session_skipped_product_ids.discard(parent_id)
+
+            if matches:
+                for product in matches:
+                    self._readmit_product(product, goods_data)
+                # Обновление существующего Product
+                return self._update_existing_product(matches[0], goods_data, base_dir, skip_images)
+
+            # Создание нового Product
+            return self._create_new_product(goods_data, base_dir, skip_images)
+
+        except Exception as e:
+            self._log_error(f"Error processing product from goods: {e}", goods_data)
+            return None
+
+    # ------------------------------------------------------------------------
+    # Правило допуска товара
+    # ------------------------------------------------------------------------
+
+    @staticmethod
+    def _goods_group_ids(goods_data: dict[str, Any]) -> list[str]:
+        """Все группы товара; `category_id` — запасной вариант для старого формата."""
+        group_ids = [str(group_id) for group_id in goods_data.get("category_ids") or [] if group_id]
+        if not group_ids and goods_data.get("category_id"):
+            group_ids = [str(goods_data["category_id"])]
+        return group_ids
+
+    def _product_rejection_reason(self, goods_data: dict[str, Any]) -> str | None:
+        """Причина недопуска товара или None, если товар допущен.
+
+        Условия допуска: все группы товара лежат в поддереве якоря, товар не
+        помечен на удаление, ни одна группа на пути до якоря не помечена.
+        При пустом ROOT_CATEGORY_NAME первое условие выключено.
+        """
+        if goods_data.get("is_deleted"):
+            return REASON_PRODUCT_MARKED
+
+        group_ids = self._goods_group_ids(goods_data)
+
+        if self._category_filtering_active:
+            if not group_ids:
+                return REASON_NO_GROUP
+            for group_id in group_ids:
+                if group_id not in self._allowed_category_ids:
+                    return self._group_rejection_reason(group_id)
+            return None
+
+        for group_id in group_ids:
+            reason = first_blocked_reason(group_id, self._group_parent_of, self._marked_groups)
+            if reason:
+                return reason
+        return None
+
+    def _group_rejection_reason(self, group_id: str) -> str:
+        """Почему группа не входит в поддерево якоря."""
+        if group_id not in self._group_parent_of:
+            return REASON_UNKNOWN_GROUP
+        blocked_reason = first_blocked_reason(
+            group_id,
+            self._group_parent_of,
+            self._blocked_groups,
+            stop_at=self._allowed_category_ids,
+        )
+        return blocked_reason or REASON_OUTSIDE_TREE
+
+    def _skip_new_product(self, parent_id: str, reason: str) -> None:
+        """Учесть товар, который эта сессия не создала."""
+        self.stats["skipped_products"] += 1
+        self._session_skipped_product_ids.add(parent_id)
+        self._product_cache.pop(parent_id, None)
+        logger.debug(f"Product {parent_id} not created: {reason}")
+
+    def _reject_product(
+        self,
+        parent_id: str,
+        goods_data: dict[str, Any],
+        matches: list[Any],
+        reason: str,
+    ) -> None:
+        """Недопущенный товар: нового не создаём, существующий скрываем.
+
+        Импорт ничего не удаляет физически — это делает только команда
+        `purge_products_outside_root`. Варианты скрытого товара не трогаются:
+        `is_active=False` у товара уже убирает его с витрины, а возврат не должен
+        включать варианты, скрытые их собственной пометкой.
+        """
+        self._registry.add(parent_id, KIND_PRODUCT, reason)
+
+        if not matches:
+            self._skip_new_product(parent_id, reason)
+            return
+
+        self._product_cache.pop(parent_id, None)
+        for product in matches:
+            if product.onec_deleted and not product.is_active:
+                continue
+            product.is_active = False
+            product.onec_deleted = True
+            product.save(update_fields=["is_active", "onec_deleted", "updated_at"])
+            self.stats["hidden_products"] += 1
+            logger.info(
+                "Товар скрыт импортом 1С: onec_id=%s article=%s name=%s reason=%s",
+                product.onec_id or parent_id,
+                product.article or goods_data.get("article") or "",
+                product.name,
+                reason,
+            )
+
+    def _readmit_product(self, product: Any, goods_data: dict[str, Any]) -> None:
+        """Допущенный товар: вернуть скрытое импортом, подтянуть отставшую категорию.
+
+        Товар, выключенный на сайте (`is_active=False`, `onec_deleted=False`),
+        включается по правилу `_enable_priced_product`: 1С важнее флага сайта.
+        Категория переносится только если текущая лежит вне поддерева якоря —
+        полная синхронизация категорий вне объёма.
+        """
+        fields_to_update: list[str] = []
+
+        if product.onec_deleted:
+            product.onec_deleted = False
+            fields_to_update.append("onec_deleted")
+            if not product.is_active and product.variants.filter(is_active=True).exists():
+                product.is_active = True
+                fields_to_update.append("is_active")
+            self.stats["restored_products"] += 1
+            logger.info(
+                "Товар возвращён импортом 1С: onec_id=%s article=%s name=%s",
+                product.onec_id,
+                product.article,
+                product.name,
+            )
+        elif not product.is_active and self._enable_priced_product(product.pk):
+            product.is_active = True
+
+        if self._category_filtering_active:
+            current = product.category
+            current_key = category_key(current.pk, current.onec_id)
+            if current_key not in self._allowed_category_ids:
+                target = self._resolve_product_category(goods_data)
+                if target is not None and target.pk != current.pk:
+                    product.category = target
+                    fields_to_update.append("category")
+                    self.stats["recategorized_products"] += 1
+                    logger.info(
+                        "Товар перенесён в категорию своей группы 1С: onec_id=%s article=%s name=%s "
+                        "category='%s' -> '%s'",
+                        product.onec_id,
+                        product.article,
+                        product.name,
+                        current.name,
+                        target.name,
+                    )
+
+        if fields_to_update:
+            product.save(update_fields=[*fields_to_update, "updated_at"])
+
+    # ------------------------------------------------------------------------
+    # Поддерево якоря: строится один раз на сессию
+    # ------------------------------------------------------------------------
+
+    def _ensure_admission_context(self) -> None:
+        """Построить дерево допуска, если сессия пришла без groups*.xml.
+
+        На проде каждый файл обмена — отдельная сессия: `goods_N.xml` приходит
+        без дерева групп, и поддерево якоря собирается из БД. Именно так
+        BT45-RU попал в каталог — фильтр был активен только при наличии
+        `groups.xml` в той же сессии.
+        """
+        if self._admission_ready:
+            return
+        self._admission_ready = True
+
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None)
+        if not root_category_name:
+            self._warn_root_filter_disabled()
+            self._rebuild_admission_tree()
+            return
+
+        anchor_id = self._resolve_anchor_id(root_category_name, [], set())
+        if not anchor_id:
+            self._report_anchor_missing(root_category_name)
+            return
+
+        self._anchor_id = anchor_id
+        self._category_filtering_active = True
+        self._rebuild_admission_tree()
+
+    def _warn_root_filter_disabled(self) -> None:
+        if self._root_filter_warning_logged:
+            return
+        self._root_filter_warning_logged = True
+        logger.warning(
+            "ROOT_CATEGORY_NAME пуст: проверка «все группы товара в поддереве якоря» отключена, "
+            "действуют только пометки удаления товара и групп."
+        )
+
+    def _report_anchor_missing(self, root_category_name: str) -> None:
+        """Якорь не найден: сессия ничего не скрывает и не создаёт."""
+        self._anchor_missing = True
+        self._category_filtering_active = False
+        if self._anchor_missing_reported:
+            return
+        self._anchor_missing_reported = True
+        message = (
+            f"ОШИБКА: ROOT_CATEGORY_NAME='{root_category_name}' не найден ни в XML, ни в БД. "
+            f"Категории и новые товары не создаются, существующие товары не скрываются."
+        )
+        logger.error(message)
+        self.log_progress(message)
+
+    def _resolve_anchor_id(
+        self,
+        root_category_name: str,
+        categories_data: Sequence[Any],
+        root_ids: set[str],
+    ) -> str | None:
+        """Ид якорной категории: сначала среди корней XML, затем в БД."""
+        from apps.products.models import Category
+
+        # 1. Ищем якорную среди корневых групп XML
+        for cat in categories_data:
+            cat_id = cat.get("id")
+            if cat_id in root_ids and cat.get("name") == root_category_name:
+                return str(cat_id)
+
+        # Якорь, найденный в предыдущем groups*.xml этой же сессии
+        if self._anchor_id:
+            return self._anchor_id
+
+        # 2. Ищем якорную в базе (случай инкрементального обновления)
+        anchor_cat = Category.objects.filter(name=root_category_name, parent__isnull=True, is_active=True).first()
+        if not anchor_cat:
+            # Неактивный якорь реактивируется, чтобы дерево не стало пустым
+            inactive_anchor = Category.objects.filter(
+                name=root_category_name, parent__isnull=True, is_active=False
+            ).first()
+            if inactive_anchor:
+                inactive_anchor.is_active = True
+                inactive_anchor.save(update_fields=["is_active"])
+                anchor_cat = inactive_anchor
+                logger.info(
+                    "Якорная категория '%s' была неактивной — реактивирована при инкрементальном импорте.",
+                    root_category_name,
+                )
+        if anchor_cat:
+            return category_key(anchor_cat.pk, anchor_cat.onec_id)
+        return None
+
+    def _rebuild_admission_tree(self) -> None:
+        """Пересобрать сводное дерево групп и поддерево якоря.
+
+        Для групп из groups*.xml сессии родителя задаёт XML; БД используется
+        только для групп, которых в XML нет. Раньше БД перевешивала: группа,
+        перенесённая в 1С из СПОРТ в «Номенклатуру к удалению», оставалась в
+        поддереве, пока в БД жила её старая связь с родителем.
+        """
+        _, parent_of, name_of = load_db_category_tree()
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None)
+
+        # Группа из реестра исключена вместе с потомками — пока XML этой сессии
+        # не скажет о ней иное.
+        blocked = {
+            group_id: reason for group_id, reason in self._registry.groups().items() if group_id not in self._xml_groups
+        }
+        for group_id, (parent_id, is_deleted) in self._xml_groups.items():
+            parent_of[group_id] = parent_id
+            if is_deleted:
+                blocked[group_id] = REASON_GROUP_MARKED
+
+        self._group_parent_of = parent_of
+        self._blocked_groups = blocked
+        self._marked_groups = {key: reason for key, reason in blocked.items() if reason == REASON_GROUP_MARKED}
+
+        if not self._category_filtering_active or not self._anchor_id:
+            return
+
+        anchor_keys = {self._anchor_id}
+        # Repair-якорь (без Ид 1С или с sentinel) — тот же якорь: ШАГ 1
+        # process_categories сольёт его с якорем из XML.
+        for key, parent_key in parent_of.items():
+            if parent_key or name_of.get(key) != root_category_name:
+                continue
+            if key == REPAIR_ANCHOR_ONEC_ID or key.startswith("__pk_"):
+                anchor_keys.add(key)
+
+        if self._anchor_id in blocked:
+            logger.warning(
+                "Якорная категория '%s' помечена на удаление в 1С — пометка якоря игнорируется.",
+                root_category_name,
+            )
+
+        self._allowed_category_ids = compute_subtree(parent_of, anchor_keys, blocked)
+
+    def _sync_group_registry(self) -> None:
+        """Занести в реестр группы XML вне поддерева, убрать вернувшиеся.
+
+        Запись о группе нужна следующим сессиям без groups*.xml: в БД у такой
+        категории остаётся старая связь с родителем внутри якоря, и без реестра
+        она продолжала бы давать допуск своим товарам.
+        """
+        for group_id in self._xml_groups:
+            if self._category_filtering_active:
+                if group_id in self._allowed_category_ids:
+                    self._registry.discard(group_id, KIND_GROUP)
+                else:
+                    self._registry.add(group_id, KIND_GROUP, self._group_rejection_reason(group_id))
+                continue
+
+            reason = first_blocked_reason(group_id, self._group_parent_of, self._marked_groups)
+            if reason:
+                self._registry.add(group_id, KIND_GROUP, reason)
+            else:
+                self._registry.discard(group_id, KIND_GROUP)
+
+    def _update_existing_product(
+        self,
+        product: Any,
+        goods_data: dict[str, Any],
+        base_dir: str | None,
+        skip_images: bool,
+    ) -> Any:
+        """Обновление существующего Product"""
+        from apps.products.models import Brand, Brand1CMapping
+
+        parent_id = str(goods_data.get("id"))
+        brand_id = str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
+
+        # Убедимся что onec_id установлен
+        if not product.onec_id:
+            product.onec_id = parent_id
+
+        # Обновляем бренд если изменился
+        brand = self._determine_brand(brand_id, str(parent_id))
+        fields_to_update: list[str] = []
+
+        # Наименование: в <Наименование> 1С выгружает рабочее наименование номенклатуры
+        # (наименование для печати лежит отдельно, в реквизите «Полное наименование»).
+        # slug намеренно не пересчитываем — он зафиксирован в выдаче и внешних ссылках.
+        name = goods_data.get("name")
+        if name and product.name != name:
+            product.name = name
+            fields_to_update.append("name")
+
+        # Артикул хранится у товара: в offers.xml 1С его не выгружает вовсе
+        article = goods_data.get("article") or ""
+        if product.article != article:
+            product.article = article
+            fields_to_update.append("article")
+
+        if product.brand_id != brand.pk:
+            product.brand = brand
+            fields_to_update.append("brand")
+
+        if brand_id and product.onec_brand_id != brand_id:
+            product.onec_brand_id = brand_id
+            fields_to_update.append("onec_brand_id")
+
+        # Обновляем описание если есть
+        description = goods_data.get("description")
+        if description and product.description != description:
+            product.description = description
+            fields_to_update.append("description")
+
+        vat_rate = goods_data.get("vat_rate")
+        if vat_rate is not None:
+            vat_rate = Decimal(str(vat_rate))
+            if product.vat_rate != vat_rate:
+                product.vat_rate = vat_rate
+                fields_to_update.append("vat_rate")
+
+        if fields_to_update:
+            product.save(update_fields=fields_to_update)
+
+        if vat_rate is not None:
+            self._sync_product_variants_vat_rate(product, vat_rate)
+
+        # Импорт изображений в base_images (Hybrid подход).
+        # goods.xml — источник истины по составу, поэтому зеркалируем.
+        if not skip_images and base_dir and "images" in goods_data:
+            self._import_base_images(product, goods_data["images"], base_dir, mirror_composition=True)
+
+        self.stats["products_updated"] += 1
+        self.updated_products.append(str(product.onec_id))
+        logger.info(f"Product updated: {product.onec_id}")
+        return product
+
+    def _create_new_product(
+        self,
+        goods_data: dict[str, Any],
+        base_dir: str | None,
+        skip_images: bool,
+    ) -> Any | None:
+        """Создание нового Product"""
+        from apps.products.models import Brand, Category, Product
+
+        parent_id = goods_data.get("id")
+        brand_id = goods_data.get("brand_id")
+
+        # Категория товара — категория его группы 1С. Запасных категорий нет:
+        # товар без разрешённой категории не создаётся.
+        category = self._resolve_product_category(goods_data)
+
+        if category is None:
+            self.stats["skipped"] += 1
+            self._skip_new_product(str(parent_id), "категория группы не найдена")
+            return None
+
+        # Получаем бренд
+        brand = self._determine_brand(brand_id, str(parent_id))
+
+        # Генерируем уникальный slug
+        name = goods_data.get("name", "Product Placeholder")
+        slug = self._generate_unique_slug(name, str(parent_id))
+
+        # Создание Product (без цен/остатков - они в ProductVariant)
+        product = Product(
+            onec_id=parent_id,
+            parent_onec_id=parent_id,
+            onec_brand_id=brand_id,
+            name=name,
+            slug=slug,
+            article=goods_data.get("article") or "",
+            description=goods_data.get("description", ""),
+            brand=brand,
+            category=category,
+            vat_rate=Decimal(str(goods_data["vat_rate"])) if goods_data.get("vat_rate") is not None else None,
+            is_active=False,  # Активируется после создания variants
+            sync_status=Product.SyncStatus.PENDING,
+            base_images=[],  # Будет заполнено при импорте изображений
+        )
+
+        try:
+            product.save()
+            logger.info(f"Product created: {product.onec_id}")
+            self.stats["products_created"] += 1
+
+            # Импорт изображений в base_images (Hybrid подход).
+            # goods.xml — источник истины по составу, поэтому зеркалируем.
+            if not skip_images and base_dir and "images" in goods_data:
+                self._import_base_images(product, goods_data["images"], base_dir, mirror_composition=True)
+
+            return product
+
+        except Exception as e:
+            self._log_error(f"Error saving product: {e}", goods_data)
+            return None
+
+    def _sync_product_variants_vat_rate(self, product: Any, vat_rate: Decimal) -> int:
+        """Обновляет ставки НДС существующих вариантов после раздельного импорта goods.xml.
+
+        Пропускает варианты, у которых склад имеет собственный маппинг vat_rate в WAREHOUSE_RULES:
+        для таких вариантов ставка НДС определяется складом (rests.xml), а не товаром (goods.xml).
+        """
+        from apps.products.models import ProductVariant
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        # Склады с явным vat_rate — их варианты обновляет rests.xml, не goods.xml
+        warehouses_with_own_vat = [name for name, info in warehouse_rules.items() if info.get("vat_rate") is not None]
+
+        updated = (
+            ProductVariant.objects.filter(product=product)
+            .filter(models.Q(vat_rate__isnull=True) | ~models.Q(vat_rate=vat_rate))
+            .exclude(warehouse_name__in=warehouses_with_own_vat)
+            .update(vat_rate=vat_rate)
+        )
+        if updated:
+            self.stats["variants_updated"] += updated
+            logger.info(f"Product {product.onec_id}: synchronized vat_rate={vat_rate} to {updated} existing variants")
+        return updated
+
+    def _import_base_images(
+        self,
+        product: Any,
+        image_paths: list[str],
+        base_dir: str,
+        *,
+        mirror_composition: bool = False,
+    ) -> None:
+        """
+        Импорт изображений в Product.base_images (Hybrid подход AC6)
+
+        Args:
+            product: Product instance
+            image_paths: Список путей к изображениям из goods.xml
+            base_dir: Базовая директория импорта
+            mirror_composition: True — состав и порядок берутся из выгрузки
+                (goods.xml — источник истины, снятая в 1С картинка уходит).
+                False — прежнее аддитивное поведение; используется импортом
+                сканированием каталога, где список собран по остаткам на диске
+                и зеркалирование обрезало бы всё, чего на диске уже нет.
+        """
+        if not image_paths:
+            return
+
+        effective_min = self._get_effective_min_size(image_paths, base_dir, "base")
+
+        # Разрешение картинок выгрузки строго в её порядке
+        resolved: list[str] = []
+        resolved_filenames: set[str] = set()
+
+        for image_path in image_paths:
+            try:
+                # Нормализация пути (убираем import_files/ если есть)
+                normalized_path = normalize_image_path(image_path)
+                source_path = self._resolve_image_source(base_dir, normalized_path)
+                saved_path = self._save_image_if_not_exists(
+                    source_path, normalized_path, "base", min_size_bytes=effective_min
+                )
+
+                if saved_path:
+                    saved_filename = Path(saved_path).name
+                    # 1С может прислать один и тот же файл дважды
+                    if saved_filename in resolved_filenames:
+                        continue
+                    resolved.append(saved_path)
+                    resolved_filenames.add(saved_filename)
+
+            except Exception as e:
+                logger.error(f"Error copying image {image_path}: {e}")
+                self.stats["images_errors"] += 1
+
+        if mirror_composition:
+            if not resolved:
+                # Сбой обмена, подчищенный каталог и «в 1С сняли все фото»
+                # неотличимы — состав остаётся прежним.
+                logger.warning(
+                    f"Product {product.onec_id}: ни одна картинка выгрузки не разрешилась, "
+                    f"base_images оставлены без изменений"
+                )
+                return
+            base_images = resolved
+        else:
+            # Дедупликация существующих base_images по filename (исправление бага дублей)
+            existing_images = product.base_images or []
+            seen_filenames: set[str] = set()
+            base_images = []
+
+            for img_path in existing_images:
+                filename = Path(img_path).name if img_path else ""
+                if filename and filename not in seen_filenames:
+                    base_images.append(img_path)
+                    seen_filenames.add(filename)
+
+            seen_paths: set[str] = set(base_images)
+
+            for saved_path in resolved:
+                saved_filename = Path(saved_path).name
+                # Проверяем и по пути, и по filename
+                if saved_filename in seen_filenames:
+                    continue
+                if saved_path not in seen_paths:
+                    base_images.append(saved_path)
+                    seen_paths.add(saved_path)
+                    seen_filenames.add(saved_filename)
+
+        # Сохранение base_images
+        if base_images != list(product.base_images or []):
+            product.base_images = base_images
+            product.save(update_fields=["base_images"])
+            logger.info(f"Product {product.onec_id} base_images updated: " f"{len(base_images)} images")
+
+    # ========================================================================
+    # Task 2: Парсер offers.xml для ProductVariant (AC: 2, 3, 4)
+    # ========================================================================
+
+    def process_variant_from_offer(
+        self,
+        offer_data: dict[str, Any],
+        base_dir: str | None = None,
+        skip_images: bool = False,
+    ) -> Any | None:
+        """
+        Создание ProductVariant из offers.xml (AC2, AC3, AC4)
+
+        Args:
+            offer_data: Данные предложения из XMLDataParser.parse_offers_xml()
+            base_dir: Базовая директория для изображений вариантов
+            skip_images: Пропустить импорт изображений
+
+        Returns:
+            ProductVariant instance или None при ошибке/пропуске
+        """
+        from apps.products.models import Product, ProductVariant
+
+        try:
+            onec_id = offer_data.get("id")
+            if not onec_id:
+                self._log_error("Missing id in offer_data", offer_data)
+                return None
+
+            # Парсинг составного ID (AC2)
+            try:
+                parent_id, variant_id = parse_onec_id(onec_id)
+            except ValueError as e:
+                logger.warning(f"Invalid onec_id format: {onec_id} - {e}")
+                self.stats["warnings"] += 1
+                return None
+
+            # Родительский товар исключён правилом допуска (в этой сессии или в
+            # прошлых — по реестру): пропуск молча, иначе каждая сессия offers
+            # давала бы тысячи «parent Product not found».
+            if self._is_product_excluded(parent_id):
+                self.stats["skipped_variants"] += 1
+                return None
+
+            # Поиск родительского Product (AC3)
+            product = self._get_product_by_parent_id(parent_id)
+            if not product:
+                # AC3: логировать warning и пропустить — это настоящая пропажа
+                if parent_id not in self._missing_products_logged:
+                    logger.warning(
+                        f"Skipping <Предложение> {onec_id}: " f"parent Product not found (parent_id={parent_id})"
+                    )
+                    self._missing_products_logged.add(parent_id)
+                self.stats["skipped"] += 1
+                return None
+
+            if product.onec_deleted:
+                self.stats["skipped_variants"] += 1
+                return None
+
+            existing_variant = ProductVariant.objects.filter(onec_id=onec_id).first()
+
+            if offer_data.get("is_deleted"):
+                self._reject_offer(onec_id, offer_data, product, existing_variant)
+                return None
+
+            # Предложение допущено: снимаем исключение
+            self._registry.discard(onec_id, KIND_OFFER)
+
+            # Ставка НДС из маппинга goods.xml → variants
+            vat_rate = self._product_vat_rates.get(parent_id)
+            if vat_rate is None and product.vat_rate is not None:
+                vat_rate = Decimal(str(product.vat_rate))
+
+            # Проверка существующего варианта
+            if existing_variant:
+                if existing_variant.onec_deleted:
+                    # Возврат: вариант скрыт пометкой предложения, пометку сняли.
+                    # Сам флаг is_active вернёт _update_existing_variant.
+                    existing_variant.onec_deleted = False
+                    existing_variant.save(update_fields=["onec_deleted", "updated_at"])
+                    self.stats["restored_variants"] += 1
+                    logger.info(
+                        "Вариант возвращён импортом 1С: onec_id=%s sku=%s name=%s",
+                        existing_variant.onec_id,
+                        existing_variant.sku,
+                        offer_data.get("name") or product.name,
+                    )
+                variant = self._update_existing_variant(existing_variant, offer_data, base_dir, skip_images, vat_rate)
+                # Владелец — из самого варианта: `product` при дублях `parent_onec_id`
+                # лишь первый из них.
+                self._enable_priced_product(variant.product_id)
+                return variant
+
+            # Создание нового варианта
+            return self._create_new_variant(product, onec_id, offer_data, base_dir, skip_images, vat_rate)
+
+        except Exception as e:
+            self._log_error(f"Error processing variant from offer: {e}", offer_data)
+            return None
+
+    def _update_existing_variant(
+        self,
+        variant: Any,
+        offer_data: dict[str, Any],
+        base_dir: str | None,
+        skip_images: bool,
+        vat_rate: "Decimal | None" = None,
+    ) -> Any:
+        """Обновление существующего ProductVariant"""
+        fields_to_update: list[str] = []
+
+        # Обновляем SKU если изменился
+        article = offer_data.get("article")
+        if article and variant.sku != article:
+            variant.sku = article
+            fields_to_update.append("sku")
+
+        # Обновляем характеристики (AC4)
+        characteristics = offer_data.get("characteristics", [])
+        parsed_chars = parse_characteristics(characteristics)
+
+        # Fallback на извлечение из названия
+        name = offer_data.get("name", "")
+        if not parsed_chars["color_name"]:
+            parsed_chars["color_name"] = extract_color_from_name(name)
+        # AC7: непомещающуюся характеристику бракуем ДО fallback — иначе она
+        # блокирует извлечение валидного размера из наименования и он теряется
+        parsed_chars["size_value"] = self._normalize_size_value(parsed_chars["size_value"], variant.onec_id)
+        if not parsed_chars["size_value"]:
+            parsed_chars["size_value"] = self._normalize_size_value(extract_size_from_name(name), variant.onec_id)
+
+        if parsed_chars["color_name"] and variant.color_name != parsed_chars["color_name"]:
+            variant.color_name = parsed_chars["color_name"]
+            fields_to_update.append("color_name")
+
+        if parsed_chars["size_value"] and variant.size_value != parsed_chars["size_value"]:
+            variant.size_value = parsed_chars["size_value"]
+            fields_to_update.append("size_value")
+
+        # Активируем вариант. Скрытый пометкой предложения не трогаем: вернуть
+        # его может только снятие пометки (см. process_variant_from_offer).
+        if not variant.is_active and not variant.onec_deleted:
+            variant.is_active = True
+            fields_to_update.append("is_active")
+
+        # Обновляем ставку НДС если известна из goods.xml
+        if vat_rate is not None and variant.vat_rate != vat_rate:
+            variant.vat_rate = vat_rate
+            fields_to_update.append("vat_rate")
+
+        if fields_to_update:
+            variant.save(update_fields=fields_to_update)
+
+        # Импорт изображений варианта (AC6).
+        # offers.xml — источник истины по составу, поэтому зеркалируем.
+        if not skip_images and base_dir:
+            images = offer_data.get("images", [])
+            if images:
+                self._import_variant_images(variant, images, base_dir, mirror_composition=True)
+
+        # Story 14.4: Связывание атрибутов с ProductVariant (offers.xml)
+        characteristics = offer_data.get("characteristics", [])
+        if characteristics:
+            try:
+                self._link_variant_attributes(variant, characteristics)
+            except Exception as attr_error:
+                logger.error(f"Error linking attributes for variant {variant.onec_id}: " f"{attr_error}")
+                self.stats["errors"] += 1
+
+        self.stats["variants_updated"] += 1
+        self.updated_variants.append(str(variant.onec_id))
+        logger.info(f"ProductVariant updated: {variant.onec_id}")
+        return variant
+
+    def _create_new_variant(
+        self,
+        product: Any,
+        onec_id: str,
+        offer_data: dict[str, Any],
+        base_dir: str | None,
+        skip_images: bool,
+        vat_rate: "Decimal | None" = None,
+    ) -> Any | None:
+        """Создание нового ProductVariant"""
+        from apps.products.models import ProductVariant
+
+        # Извлечение характеристик (AC4)
+        characteristics = offer_data.get("characteristics", [])
+        parsed_chars = parse_characteristics(characteristics)
+
+        # Fallback на извлечение из названия
+        name = offer_data.get("name", "")
+        if not parsed_chars["color_name"]:
+            parsed_chars["color_name"] = extract_color_from_name(name)
+        # AC7: непомещающуюся характеристику бракуем ДО fallback — иначе она
+        # блокирует извлечение валидного размера из наименования и он теряется
+        parsed_chars["size_value"] = self._normalize_size_value(parsed_chars["size_value"], onec_id)
+        if not parsed_chars["size_value"]:
+            parsed_chars["size_value"] = self._normalize_size_value(extract_size_from_name(name), onec_id)
+
+        # SKU
+        article = offer_data.get("article")
+        sku = article if article else f"SKU-{onec_id[:8]}"
+
+        # Обеспечиваем уникальность SKU
+        sku = self._ensure_unique_sku(sku)
+
+        variant = ProductVariant(
+            product=product,
+            sku=sku,
+            onec_id=onec_id,
+            color_name=parsed_chars["color_name"],
+            size_value=parsed_chars["size_value"],
+            is_active=True,
+            # Цены по умолчанию = 0, будут обновлены из prices.xml
+            retail_price=Decimal("0"),
+            opt1_price=None,
+            opt2_price=None,
+            opt3_price=None,
+            opt4_price=None,
+            trainer_price=None,
+            federation_price=None,
+            vip_price=None,
+            special_price=None,
+            stock_quantity=0,  # Будет обновлен из rests.xml
+            vat_rate=vat_rate,  # Ставка НДС из goods.xml
+        )
+
+        try:
+            variant.save()
+            logger.info(
+                f"ProductVariant created: {variant.onec_id} "
+                f"(sku={variant.sku}, color={variant.color_name}, "
+                f"size={variant.size_value})"
+            )
+            self.stats["variants_created"] += 1
+
+            # Активируем родительский Product
+            self._activate_parent_product(product)
+
+            # Импорт изображений варианта (AC6).
+            # offers.xml — источник истины по составу, поэтому зеркалируем.
+            if not skip_images and base_dir:
+                images = offer_data.get("images", [])
+                if images:
+                    self._import_variant_images(variant, images, base_dir, mirror_composition=True)
+
+            # Story 14.4: Связывание атрибутов с ProductVariant (offers.xml)
+            characteristics = offer_data.get("characteristics", [])
+            if characteristics:
+                try:
+                    self._link_variant_attributes(variant, characteristics)
+                except Exception as attr_error:
+                    logger.error(f"Error linking attributes for new variant {variant.onec_id}: " f"{attr_error}")
+                    self.stats["errors"] += 1
+
+            return variant
+
+        except Exception as e:
+            self._log_error(f"Error saving variant: {e}", offer_data)
+            return None
+
+    def _activate_parent_product(self, product: Any) -> None:
+        """Активировать товар, у которого появился активный вариант.
+
+        Товар, скрытый импортом (`onec_deleted`), не включается: вернуть его
+        может только допуск самого товара в goods.xml.
+        """
+        if product.is_active or product.onec_deleted:
+            return
+        product.is_active = True
+        product.sync_status = product.SyncStatus.IN_PROGRESS
+        product.save(update_fields=["is_active", "sync_status"])
+
+    def _enable_priced_product(self, product_id: int) -> bool:
+        """Включить товар, выключенный на сайте, если по нему есть что продавать.
+
+        1С важнее флага сайта: `is_active=False` без `onec_deleted` снимается, когда
+        у товара есть активный вариант с положительной ценой. Цена скрытого варианта
+        не считается, а товар с `onec_deleted` возвращает только допуск в goods.xml.
+
+        Импорт только включает: обнуление цены активный товар не выключает.
+        """
+        from apps.products.models import Product, ProductVariant
+        from apps.products.serializers import priced_variant_q
+
+        priced_variants = ProductVariant.objects.filter(
+            priced_variant_q(), product_id=models.OuterRef("pk"), is_active=True, onec_deleted=False
+        )
+        enabled = Product.objects.filter(
+            models.Exists(priced_variants), pk=product_id, is_active=False, onec_deleted=False
+        ).update(is_active=True, updated_at=timezone.now())
+        if not enabled:
+            return False
+
+        product = Product.objects.values("onec_id", "parent_onec_id", "article", "name").get(pk=product_id)
+        # Объект в кэше сессии устарел, а `_reject_offer` решает по его `is_active`.
+        for parent_id in filter(None, (product["onec_id"], product["parent_onec_id"])):
+            self._product_cache.pop(parent_id, None)
+        self.stats["reenabled_products"] += 1
+        logger.info(
+            "Товар включён импортом 1С: onec_id=%s article=%s name=%s",
+            product["onec_id"],
+            product["article"],
+            product["name"],
+        )
+        return True
+
+    def _is_product_excluded(self, parent_id: str) -> bool:
+        """Товар исключён правилом допуска: по реестру или в этой сессии."""
+        return parent_id in self._session_skipped_product_ids or self._registry.is_product_excluded(parent_id)
+
+    def _is_offer_excluded(self, onec_id: str) -> bool:
+        """Предложение исключено: само, через родителя либо родитель скрыт импортом."""
+        parent_id = onec_id.split("#", 1)[0]
+        if self._registry.is_offer_excluded(onec_id) or self._is_product_excluded(parent_id):
+            return True
+        product = self._get_product_by_parent_id(parent_id)
+        return bool(product is not None and product.onec_deleted)
+
+    def _reject_offer(
+        self,
+        onec_id: str,
+        offer_data: dict[str, Any],
+        product: Any,
+        existing_variant: Any | None,
+    ) -> None:
+        """Предложение помечено на удаление: новый вариант не создаём, существующий скрываем."""
+        from apps.products.models import ProductVariant
+
+        self._registry.add(onec_id, KIND_OFFER, REASON_OFFER_MARKED)
+        self._variant_cache.pop(onec_id, None)
+
+        if existing_variant is None:
+            self.stats["skipped_variants"] += 1
+            return
+
+        if not existing_variant.onec_deleted or existing_variant.is_active:
+            existing_variant.is_active = False
+            existing_variant.onec_deleted = True
+            existing_variant.save(update_fields=["is_active", "onec_deleted", "updated_at"])
+            self.stats["hidden_variants"] += 1
+            logger.info(
+                "Вариант скрыт импортом 1С: onec_id=%s sku=%s name=%s reason=%s",
+                existing_variant.onec_id,
+                existing_variant.sku,
+                offer_data.get("name") or product.name,
+                REASON_OFFER_MARKED,
+            )
+
+        # Все предложения товара помечены — товар уходит с витрины, но флаг
+        # `onec_deleted` не получает: сам товар в 1С допущен.
+        if product.is_active and not ProductVariant.objects.filter(product=product, is_active=True).exists():
+            product.is_active = False
+            product.save(update_fields=["is_active", "updated_at"])
+            logger.info(
+                "Товар деактивирован, все предложения помечены на удаление: onec_id=%s article=%s name=%s",
+                product.onec_id,
+                product.article,
+                product.name,
+            )
+
+    def _import_variant_images(
+        self,
+        variant: Any,
+        image_paths: list[str],
+        base_dir: str,
+        *,
+        mirror_composition: bool = False,
+    ) -> None:
+        """
+        Импорт изображений в ProductVariant (AC6 - Hybrid подход)
+
+        Первое изображение → main_image
+        Остальные → gallery_images
+
+        Args:
+            variant: ProductVariant instance
+            image_paths: Список путей к изображениям из offers.xml
+            base_dir: Базовая директория импорта
+            mirror_composition: True — состав и порядок берутся из выгрузки,
+                уже заполненное main_image переназначается. False — прежнее
+                аддитивное поведение для импорта сканированием каталога.
+        """
+        if not image_paths:
+            return
+
+        effective_min = self._get_effective_min_size(image_paths, base_dir, "variants")
+
+        # Разрешение картинок выгрузки строго в её порядке
+        resolved: list[str] = []
+        resolved_filenames: set[str] = set()
+
+        for image_path in image_paths:
+            try:
+                # Нормализация пути (убираем import_files/ если есть)
+                normalized_path = normalize_image_path(image_path)
+                source_path = self._resolve_image_source(base_dir, normalized_path)
+                saved_path = self._save_image_if_not_exists(
+                    source_path, normalized_path, "variants", min_size_bytes=effective_min
+                )
+
+                if saved_path:
+                    saved_filename = Path(saved_path).name
+                    # 1С может прислать один и тот же файл дважды
+                    if saved_filename in resolved_filenames:
+                        continue
+                    resolved.append(saved_path)
+                    resolved_filenames.add(saved_filename)
+
+            except Exception as e:
+                logger.error(f"Error copying variant image {image_path}: {e}")
+                self.stats["images_errors"] += 1
+
+        if mirror_composition:
+            if not resolved:
+                # Пустое разрешение состав варианта не меняет — см. _import_base_images
+                logger.warning(
+                    f"Variant {variant.onec_id}: ни одна картинка выгрузки не разрешилась, "
+                    f"состав изображений оставлен без изменений"
+                )
+                return
+
+            variant.main_image = resolved[0]
+            variant.gallery_images = resolved[1:]
+            variant.save(update_fields=["main_image", "gallery_images"])
+            return
+
+        main_image_set = bool(variant.main_image)
+
+        # Дедупликация существующих gallery_images по filename (исправление бага дублей)
+        existing_gallery = variant.gallery_images or []
+        seen_filenames: set[str] = set()
+        gallery_images: list[str] = []
+
+        # Добавляем main_image filename в seen_filenames.
+        # Path() принимает только str: main_image — ImageFieldFile, берём .name.
+        if variant.main_image:
+            main_filename = Path(variant.main_image.name).name
+            if main_filename:
+                seen_filenames.add(main_filename)
+
+        for img_path in existing_gallery:
+            filename = Path(img_path).name if img_path else ""
+            if filename and filename not in seen_filenames:
+                gallery_images.append(img_path)
+                seen_filenames.add(filename)
+
+        seen_paths: set[str] = set(gallery_images)
+
+        for saved_path in resolved:
+            saved_filename = Path(saved_path).name
+            # Проверяем и по пути, и по filename
+            if saved_filename in seen_filenames:
+                continue
+
+            if not main_image_set:
+                variant.main_image = saved_path
+                main_image_set = True
+                seen_filenames.add(saved_filename)
+            elif saved_path not in seen_paths:
+                gallery_images.append(saved_path)
+                seen_paths.add(saved_path)
+                seen_filenames.add(saved_filename)
+
+        # Сохранение
+        variant.gallery_images = gallery_images
+        variant.save(update_fields=["main_image", "gallery_images"])
+
+    # ========================================================================
+    # Task 3: Обработка товаров без вариантов (AC: 5)
+    # ========================================================================
+
+    def create_default_variants(self) -> int:
+        """
+        Создание дефолтных ProductVariant для товаров без вариантов (AC5)
+
+        Выполняется ПОСЛЕ parse_offers_xml() и ДО parse_prices_xml()
+
+        Returns:
+            Количество созданных default variants
+        """
+        from apps.products.models import Product, ProductVariant
+
+        # Найти все Products без ProductVariant (включая неактивные).
+        # Скрытые импортом не трогаем: дефолтный вариант вернул бы их на витрину.
+        products_without_variants = Product.objects.filter(
+            variants__isnull=True,
+            onec_deleted=False,
+        )
+
+        # «В 1С у товара нет характеристик» и «все предложения помечены на
+        # удаление» в БД выглядят одинаково — вариантов нет. Различает их реестр:
+        # у второго там лежат предложения этого товара. Ему дефолтный вариант не
+        # положен, товар остаётся неактивным.
+        marked_offer_parents = self._registry.offer_parent_ids()
+
+        count = products_without_variants.count()
+        logger.info(f"Found {count} products without variants")
+
+        if count == 0:
+            logger.info("No products without variants found, skipping default variant creation")
+            return 0
+
+        default_variants: list[ProductVariant] = []
+        product_ids_to_activate: list[int] = []
+        batch_count = 0
+
+        for product in products_without_variants.iterator():
+            if product.onec_id in marked_offer_parents or product.parent_onec_id in marked_offer_parents:
+                continue
+
+            # Генерируем уникальный SKU
+            sku = self._ensure_unique_sku(product.onec_id or f"DEFAULT-{product.pk}")
+
+            variant = ProductVariant(
+                product=product,
+                sku=sku,
+                onec_id=product.onec_id or f"default-{product.pk}",
+                color_name="",
+                size_value="",
+                is_active=True,
+                retail_price=Decimal("0"),
+                opt1_price=None,
+                opt2_price=None,
+                opt3_price=None,
+                opt4_price=None,
+                trainer_price=None,
+                federation_price=None,
+                vip_price=None,
+                special_price=None,
+                stock_quantity=0,
+                vat_rate=Decimal(str(product.vat_rate)) if product.vat_rate is not None else None,
+            )
+            default_variants.append(variant)
+            product_ids_to_activate.append(product.pk)
+
+            logger.info(
+                f"Creating default variant for product: {product.name} " f"(onec_id={product.onec_id}, sku={sku})"
+            )
+
+            # Batch processing (NFR4)
+            if len(default_variants) >= self.batch_size:
+                with transaction.atomic():
+                    ProductVariant.objects.bulk_create(default_variants, ignore_conflicts=True)
+                    Product.objects.filter(pk__in=product_ids_to_activate, is_active=False, onec_deleted=False).update(
+                        is_active=True
+                    )
+                batch_count += len(default_variants)
+                logger.info(f"Processed {batch_count} default variants")
+                default_variants = []
+                product_ids_to_activate = []
+
+        # Сохранение оставшихся
+        if default_variants:
+            with transaction.atomic():
+                ProductVariant.objects.bulk_create(default_variants, ignore_conflicts=True)
+                Product.objects.filter(pk__in=product_ids_to_activate, is_active=False, onec_deleted=False).update(
+                    is_active=True
+                )
+            batch_count += len(default_variants)
+
+        self.stats["default_variants_created"] = batch_count
+        logger.info(f"Successfully created {batch_count} default variants")
+        return batch_count
+
+    # ========================================================================
+    # Task 5: Рефакторинг парсера prices.xml (AC: 7)
+    # ========================================================================
+
+    def update_variant_prices(self, price_data: dict[str, Any]) -> bool:
+        """
+        Обновление цен ProductVariant из prices.xml (AC7)
+
+        Args:
+            price_data: Данные цен из XMLDataParser.parse_prices_xml()
+
+        Returns:
+            True если обновление успешно, False при ошибке
+        """
+        try:
+            onec_id = price_data.get("id")
+            if not onec_id:
+                self._log_error("Missing id in price_data", price_data)
+                return False
+
+            # Находим ProductVariant по onec_id
+            variant = self._get_variant_by_onec_id(onec_id)
+            if not variant:
+                # Исключённая позиция — не пропажа: пропуск молча, по счётчику
+                if self._is_offer_excluded(onec_id):
+                    self.stats["skipped_variants"] += 1
+                    return False
+                if onec_id not in self._missing_variants_logged:
+                    logger.warning(f"ProductVariant not found for price update: {onec_id}")
+                    self._missing_variants_logged.add(onec_id)
+                self.stats["warnings"] += 1
+                return False
+
+            prices = price_data.get("prices", [])
+
+            # Справочник видов цен и текущая акция читаются под общей блокировкой
+            # состояния акции: смена акции, смена маппинга вида цен и удаление идут под
+            # исключительной (`promo.save_price_type`), поэтому между чтением и записью
+            # цен ничего не меняется. Кэшировать справочник нельзя: устаревший объект
+            # записал бы акционную цену в `retail_price` или вернул бы цену отключённой акции.
+            price_written = False
+            with transaction.atomic():
+                promo.lock_promo_state(shared=True)
+                price_types = self._get_price_types()
+                price_updates, offer_values = self._map_offer_prices(prices, price_types)
+
+                # Auto-populate retail_price from RRP if not provided
+                # РРЦ из 1С является базовой розничной ценой для сайта
+                if "rrp" in price_updates and "retail_price" not in price_updates:
+                    price_updates["retail_price"] = price_updates["rrp"]
+
+                promo_changed, promo_value = self._resolve_promo_price(variant, offer_values, price_types)
+                if promo_changed:
+                    price_updates[promo.PROMO_FIELD] = promo_value
+
+                # Спеццена ставится и снимается после остальных цен: сброс не должен
+                # затереть цену нового вида, когда в справочнике два активных
+                special_applies, special_value = self._resolve_special_price(variant, offer_values, price_types)
+                if special_applies:
+                    price_updates[SPECIAL_PRICE_FIELD] = special_value
+
+                # Применяем обновления цен
+                fields_to_update: list[str] = []
+                for field_name, value in price_updates.items():
+                    if hasattr(variant, field_name):
+                        setattr(variant, field_name, value)
+                        fields_to_update.append(field_name)
+
+                if fields_to_update:
+                    variant.last_sync_at = timezone.now()
+                    fields_to_update.append("last_sync_at")
+                    variant.save(update_fields=fields_to_update)
+                    self.stats["prices_updated"] += 1
+                    self.updated_variants.append(str(variant.onec_id))
+                    price_written = True
+
+            # Только после блока: UPDATE варианта уже прошёл, а общий порядок
+            # блокировок — «товар → вариант» (`promo.lock_variant`).
+            if price_written:
+                self._enable_priced_product(variant.product_id)
+            return price_written
+
+        except Exception as e:
+            self._log_error(f"Error updating variant prices: {e}", price_data)
+            return False
+
+    def _map_offer_prices(
+        self, prices: list[dict[str, Any]], price_types: dict[str, Any]
+    ) -> tuple[dict[str, Decimal | None], dict[str, Decimal]]:
+        """
+        Цены предложения → поля варианта (кроме акционной).
+
+        Returns:
+            (обновления по полям, все цены предложения: id вида → значение)
+        """
+        price_updates: dict[str, Decimal | None] = {}
+        # Все цены предложения (id вида → значение): акционную цену выбирает
+        # живая текущая акция (`_resolve_promo_price`), а не тип цены из этого цикла
+        offer_values: dict[str, Decimal] = {}
+
+        for price_item in prices:
+            price_type_id = price_item.get("price_type_id")
+            price_value = price_item.get("value")
+
+            if not price_type_id or price_value is None:
+                continue
+            offer_values[price_type_id] = price_value
+
+            price_type = price_types.get(price_type_id)
+            if price_type is None:
+                if price_type_id not in self._unknown_price_types_logged:
+                    logger.warning(
+                        f"Вид цен {price_type_id} не найден в справочнике — цены этого вида "
+                        f"пропускаются. Справочник наполняет priceLists.xml: выполните полную "
+                        f"выгрузку из 1С."
+                    )
+                    self._unknown_price_types_logged.add(price_type_id)
+                continue
+            # Акционные цены (в том числе прошлых акций из полной выгрузки) — отдельно, молча
+            if price_type.product_field == promo.PROMO_FIELD:
+                continue
+            # Спеццену выбирает и снимает `_resolve_special_price`: видов может быть два
+            if price_type.product_field == SPECIAL_PRICE_FIELD:
+                continue
+            # Неактивный тип — молча
+            if not price_type.is_active:
+                continue
+
+            field_name = price_type.product_field
+            # Вид цен без маппинга (product_field="") не применяем ни к одному
+            # полю — иначе цена уехала бы в розницу через прежний fallback
+            if not field_name:
+                if price_type_id not in self._unmapped_price_types_logged:
+                    logger.warning(
+                        f"Вид цен '{price_type.onec_name}' ({price_type_id}) "
+                        f"не сопоставлен полю ProductVariant — цены этого вида пропускаются"
+                    )
+                    self._unmapped_price_types_logged.add(price_type_id)
+                continue
+            price_updates[field_name] = price_value
+
+        return price_updates, offer_values
+
+    def _resolve_promo_price(
+        self, variant: Any, offer_values: dict[str, Decimal], price_types: dict[str, Any]
+    ) -> tuple[bool, Decimal | None]:
+        """
+        Акционная цена варианта по живой текущей акции. Вызывать под блокировкой
+        `promo.lock_promo_state`.
+
+        Цена берётся у текущей акции из справочника, прочитанного под той же блокировкой:
+        акцию могли отключить или переключить, пока шёл прогон. Нет цены текущей акции в
+        пришедшем предложении — товар снят с акции. Цена `≤ 0` — это «акционной
+        цены нет»: нулевых цен БУС не выгружает.
+
+        Returns:
+            (изменилась ли цена, новое значение)
+        """
+        from apps.products.models import ProductVariant
+
+        current = next(
+            (pt for pt in price_types.values() if pt.product_field == promo.PROMO_FIELD and pt.is_active),
+            None,
+        )
+        new_value = offer_values.get(current.onec_id) if current is not None else None
+        if new_value is not None and new_value <= 0:
+            new_value = None
+
+        # Акции нет, и у варианта нет акционной цены: писать нечего, блокировать тоже. Смена акции
+        # идёт под исключительной блокировкой состояния, которую мы держим общей, поэтому
+        # у варианта не появится цены, пока шла эта транзакция.
+        if current is None and not ProductVariant.objects.filter(pk=variant.pk, promo_price__isnull=False).exists():
+            variant.promo_price = None
+            return False, None
+
+        # Вариант в кэше процессора мог устареть: другой прогон или сброс акции
+        # изменили `promo_price` уже после его загрузки. Блокируются товар и строка варианта
+        # (`promo.lock_variant`, общий порядок «товар → вариант») до конца транзакции:
+        # параллельный импорт того же варианта ждёт, и итоговая пара цен всегда целиком из
+        # одного пакета. Иначе первый, увидев «акционная цена не изменилась», записал бы
+        # только обычную, а чужая акционная осталась бы рядом с ней. Блокировка товара нужна
+        # ещё и флагу «Акция»: пока вариант соседа отключают и пересчитывают товар, запись
+        # акционной цены не должна пройти мимо этого пересчёта.
+        state = promo.lock_variant(variant.pk)
+        stored = state.promo_price if state is not None else None
+        variant.promo_price = stored
+        return new_value != stored, new_value
+
+    def _resolve_special_price(
+        self, variant: Any, offer_values: dict[str, Decimal], price_types: dict[str, Any]
+    ) -> tuple[bool, Decimal | None]:
+        """
+        Спеццена варианта (вид цен «СПЕЦЦЕНА»). Вызывать под `promo.lock_promo_state`,
+        вместе со справочником `price_types`, прочитанным под ней.
+
+        - Активных видов `special_price` в справочнике нет — писать и снимать нечего.
+        - Ни один активный вид не пришёл в предложении — спеццену убрали в 1С: `NULL`
+          (дальше роль платит «Опт 1»). Предложения вне пакета цен сюда не попадают.
+        - Цена `≤ 0` — «цены нет», как у акции: `NULL`.
+        - Пришли цены двух активных видов (вид пересоздали в 1С) — аномалия: берётся цена
+          вида с более поздним `created_at`, при равенстве — с большим `pk`; в лог
+          пишется предупреждение с артикулом, GUID и ценами всех видов.
+
+        Returns:
+            (нужно ли писать поле, новое значение)
+        """
+        active_types = [pt for pt in price_types.values() if pt.product_field == SPECIAL_PRICE_FIELD and pt.is_active]
+        if not active_types:
+            return False, None
+
+        present = [(pt, offer_values[pt.onec_id]) for pt in active_types if pt.onec_id in offer_values]
+        if not present:
+            return True, None
+
+        winner, value = max(present, key=lambda item: (item[0].created_at, item[0].pk))
+        if len(present) > 1:
+            prices = ", ".join(f"{pt.onec_id}={price}" for pt, price in present)
+            logger.warning(
+                f"Две цены special_price в одном предложении: артикул {variant.sku}, виды цен и цены: {prices}. "
+                f"Берётся цена вида {winner.onec_id} (создан в справочнике позже). "
+                f"Проверьте в 1С, нет ли дубля вида цен «СПЕЦЦЕНА»."
+            )
+            self.stats["warnings"] += 1
+        return True, (value if value > 0 else None)
+
+    # ========================================================================
+    # Task 6: Рефакторинг парсера rests.xml (AC: 8)
+    # ========================================================================
+
+    def update_variant_stock(self, rest_data: dict[str, Any]) -> bool:
+        """
+        Обновление остатков ProductVariant из rests.xml (AC8)
+
+        Args:
+            rest_data: Данные остатков из XMLDataParser.parse_rests_xml()
+
+        Returns:
+            True если обновление успешно, False при ошибке
+        """
+        from apps.products.models import ProductVariant
+
+        try:
+            onec_id = rest_data.get("id")
+            quantity = rest_data.get("quantity", 0)
+            warehouse_id = str(rest_data.get("warehouse_id") or "").strip()
+
+            if not onec_id:
+                self._log_error("Missing id in rest_data", rest_data)
+                return False
+
+            # Находим ProductVariant по onec_id
+            variant = self._get_variant_by_onec_id(onec_id)
+            if not variant:
+                # Исключённая позиция — не пропажа: пропуск молча, по счётчику
+                if self._is_offer_excluded(onec_id):
+                    self.stats["skipped_variants"] += 1
+                    return False
+                if onec_id not in self._missing_variants_logged:
+                    logger.warning(f"ProductVariant not found for stock update: {onec_id}")
+                    self._missing_variants_logged.add(onec_id)
+                self.stats["warnings"] += 1
+                return False
+
+            # Остатки приходят отдельными строками по складам.
+            # Храним суммарный остаток и определяем основной склад по наибольшему количеству.
+            stock_state = self._stock_buffer.setdefault(onec_id, {"total": 0, "warehouses": {}})
+            stock_state["total"] += quantity
+            if warehouse_id:
+                warehouse_totals = stock_state["warehouses"]
+                warehouse_totals[warehouse_id] = warehouse_totals.get(warehouse_id, 0) + quantity
+
+            total_quantity = int(stock_state["total"])
+            primary_warehouse_id = self._select_primary_warehouse_id(
+                stock_state["warehouses"],
+                variant.warehouse_id,
+            )
+            primary_warehouse_name = self._resolve_warehouse_name(primary_warehouse_id)
+            primary_vat_rate = self._get_vat_rate_by_warehouse_name(primary_warehouse_name)
+
+            variant.stock_quantity = total_quantity
+            if primary_warehouse_id:
+                variant.warehouse_id = primary_warehouse_id
+            if primary_warehouse_name:
+                variant.warehouse_name = primary_warehouse_name
+            if primary_vat_rate is not None:
+                variant.vat_rate = primary_vat_rate
+            variant.last_sync_at = timezone.now()
+            update_fields = ["stock_quantity", "last_sync_at"]
+            if primary_warehouse_id:
+                update_fields.append("warehouse_id")
+            if primary_warehouse_name:
+                update_fields.append("warehouse_name")
+            if primary_vat_rate is not None:
+                update_fields.append("vat_rate")
+            variant.save(update_fields=update_fields)
+
+            # Обновляем статус родительского Product
+            product = variant.product
+            if product.sync_status != product.SyncStatus.COMPLETED:
+                product.sync_status = product.SyncStatus.COMPLETED
+                product.last_sync_at = timezone.now()
+                product.save(update_fields=["sync_status", "last_sync_at"])
+
+            self.stats["stocks_updated"] += 1
+            self.updated_variants.append(str(variant.onec_id))
+            return True
+
+        except Exception as e:
+            self._log_error(f"Error updating variant stock: {e}", rest_data)
+            return False
+
+    # ========================================================================
+    # Story 14.4: Link attributes to ProductVariant
+    # ========================================================================
+
+    def _link_variant_attributes(self, variant: Any, characteristics: list[dict[str, str]]) -> None:
+        """
+        Связывание атрибутов с ProductVariant по normalized name/value (offers.xml).
+
+        Args:
+            variant: ProductVariant instance для связывания атрибутов
+            characteristics: Список словарей {name, value} из offers.xml
+
+        Behavior:
+            - Search Attribute by normalized_name (NO is_active filter - Variant C)
+            - Search AttributeValue by attribute + normalized_value
+            - Create AttributeValue on-the-fly if missing (AC3)
+            - Handle slug uniqueness for on-the-fly values
+            - Update stats: attributes_linked, attributes_missing
+        """
+        from apps.products.models import Attribute, AttributeValue
+        from apps.products.utils.attributes import normalize_attribute_name, normalize_attribute_value
+
+        if not characteristics:
+            return
+
+        attribute_values_to_link = []
+
+        for char in characteristics:
+            char_name = char.get("name", "").strip()
+            char_value = char.get("value", "").strip()
+
+            if not char_name or not char_value:
+                continue
+
+            # Нормализация для поиска
+            normalized_name = normalize_attribute_name(char_name)
+            normalized_value = normalize_attribute_value(char_value)
+
+            # Поиск Attribute по normalized_name (БЕЗ фильтрации по is_active)
+            attribute = Attribute.objects.filter(normalized_name=normalized_name).first()
+
+            if not attribute:
+                logger.warning(
+                    f"Attribute not found for normalized_name='{normalized_name}' "
+                    f"(original: '{char_name}'), variant={variant.onec_id}, "
+                    f"skipping attribute linkage"
+                )
+                self.stats["attributes_missing"] += 1
+                continue
+
+            # Поиск AttributeValue по attribute + normalized_value
+            attribute_value = AttributeValue.objects.filter(
+                attribute=attribute,
+                normalized_value=normalized_value,
+            ).first()
+
+            if not attribute_value:
+                # AC3: Create AttributeValue on-the-fly
+                try:
+                    from transliterate import translit
+
+                    transliterated = translit(char_value, "ru", reversed=True)
+                    base_slug = slugify(transliterated)
+                except (RuntimeError, ImportError):
+                    base_slug = slugify(char_value)
+
+                if not base_slug:
+                    base_slug = f"value-{normalized_value[:20]}"
+
+                # Обеспечиваем уникальность slug
+                slug = base_slug
+                counter = 1
+                while AttributeValue.objects.filter(slug=slug).exists():
+                    slug = f"{base_slug}-{counter}"
+                    counter += 1
+
+                attribute_value = AttributeValue.objects.create(
+                    attribute=attribute,
+                    value=char_value,
+                    slug=slug,
+                    normalized_value=normalized_value,
+                )
+
+                logger.info(
+                    f"Created AttributeValue on-the-fly: "
+                    f"{attribute.name}='{char_value}' (slug={slug}), "
+                    f"variant={variant.onec_id}"
+                )
+
+            attribute_values_to_link.append(attribute_value)
+            self.stats["attributes_linked"] += 1
+
+        # Bulk link через set()
+        if attribute_values_to_link:
+            variant.attributes.set(attribute_values_to_link)
+
+    # ========================================================================
+    # Helper methods
+    # ========================================================================
+
+    def _get_product_by_parent_id(self, parent_id: str) -> Any | None:
+        """Найти Product по parent_onec_id или onec_id"""
+        from apps.products.models import Product
+
+        # Проверяем кэш
+        if parent_id in self._product_cache:
+            return self._product_cache[parent_id]
+
+        product = Product.objects.filter(models.Q(parent_onec_id=parent_id) | models.Q(onec_id=parent_id)).first()
+
+        if product:
+            self._product_cache[parent_id] = product
+
+        return product
+
+    def _get_variant_by_onec_id(self, onec_id: str) -> Any | None:
+        """Найти ProductVariant по onec_id"""
+        from apps.products.models import ProductVariant
+
+        # Проверяем кэш
+        if onec_id in self._variant_cache:
+            return self._variant_cache[onec_id]
+
+        variant = ProductVariant.objects.filter(onec_id=onec_id).first()
+
+        # Если не найден по полному ID, пробуем по parent_id. Исключённое
+        # предложение отсекается ДО этого fallback: иначе цена и остаток
+        # помеченной характеристики легли бы на дефолтный вариант товара.
+        if not variant and "#" in onec_id and not self._is_offer_excluded(onec_id):
+            parent_id = onec_id.split("#")[0]
+            variant = ProductVariant.objects.filter(onec_id=parent_id).first()
+
+        if variant:
+            self._variant_cache[onec_id] = variant
+
+        return variant
+
+    def _select_primary_warehouse_id(
+        self,
+        warehouse_totals: dict[str, int],
+        current_warehouse_id: str | None = None,
+    ) -> str | None:
+        """Возвращает склад с максимальным остатком, сохраняя текущий при равенстве."""
+        if not warehouse_totals:
+            return current_warehouse_id
+
+        max_qty = max(warehouse_totals.values())
+        if current_warehouse_id and warehouse_totals.get(current_warehouse_id) == max_qty:
+            return current_warehouse_id
+
+        for warehouse_id, qty in warehouse_totals.items():
+            if qty == max_qty:
+                return warehouse_id
+
+        return current_warehouse_id
+
+    def _resolve_warehouse_name(self, warehouse_id: str | None) -> str | None:
+        """Преобразует GUID склада из rests.xml в имя склада из настроек."""
+        if not warehouse_id:
+            return None
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_name_by_id = exchange_cfg.get("WAREHOUSE_NAME_BY_ID", {})
+        if warehouse_id in warehouse_name_by_id:
+            return str(warehouse_name_by_id[warehouse_id])
+
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        if warehouse_id in warehouse_rules:
+            return warehouse_id
+
+        return None
+
+    def _get_vat_rate_by_warehouse_name(self, warehouse_name: str | None) -> Decimal | None:
+        """Возвращает ставку НДС по имени склада."""
+        if not warehouse_name:
+            return None
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        info = warehouse_rules.get(warehouse_name)
+        if not info:
+            return None
+
+        vat_rate = info.get("vat_rate")
+        if vat_rate is None:
+            return None
+
+        return Decimal(str(vat_rate))
+
+    def _determine_brand(self, brand_id: str | None, parent_id: str) -> Any:
+        """Определяет бренд через Brand1CMapping или возвращает fallback"""
+        from apps.products.models import Brand1CMapping
+
+        # Нулевой UUID — это и есть «без бренда», а не потерянный маппинг:
+        # разрешение целиком уходит в fallback-резолвер (он же учитывает
+        # маппинг, заведённый владельцем в админке), а warning не пишется —
+        # иначе он залил бы лог на ~60 % каталога.
+        if brand_id and brand_id != NO_BRAND_ONEC_ID:
+            mapping = Brand1CMapping.objects.select_related("brand").filter(onec_id=brand_id).first()
+            if mapping and mapping.brand:
+                return mapping.brand
+
+            logger.warning(
+                "Brand1CMapping not found for onec_id=%s, product=%s, using fallback brand '%s'",
+                brand_id,
+                parent_id,
+                self._fallback_brand_name(),
+            )
+
+        return self._get_fallback_brand()
+
+    def _fallback_brand_name(self) -> str:
+        """Имя fallback-бренда из настроек (по умолчанию «Без ТМ»)."""
+        return str(getattr(settings, "IMPORT_FALLBACK_BRAND_NAME", "Без ТМ"))
+
+    def _get_fallback_brand(self) -> Any:
+        """Возвращает бренд для товаров без бренда из 1С.
+
+        Истина о том, какой бренд считать fallback-брендом, хранится в
+        Brand1CMapping для NO_BRAND_ONEC_ID: так владелец управляет им из админки,
+        а переименование и объединение брендов не приводят к созданию дубликата
+        (прежний поиск строго по name="No Brand" промахивался после переименования
+        и создавал новый бренд — Story 41.16). Имя и slug нужны только для
+        первого создания и задаются настройками IMPORT_FALLBACK_BRAND_NAME/SLUG.
+        """
+        from django.db.models import Q
+
+        from apps.products.models import Brand, Brand1CMapping
+        from apps.products.utils.brands import normalize_brand_name
+
+        if self._fallback_brand is not None:
+            return self._fallback_brand
+
+        name = self._fallback_brand_name()
+        slug = str(getattr(settings, "IMPORT_FALLBACK_BRAND_SLUG", "bez-tm"))
+        normalized = normalize_brand_name(name)
+
+        brand = self._get_mapped_no_brand_brand()
+
+        if brand is None:
+            # Bootstrap: ищем по slug и normalized_name — устойчивым ключам, а не
+            # по name, чтобы переименование бренда в админке не плодило дубликат.
+            brand = Brand.objects.filter(Q(slug=slug) | Q(normalized_name=normalized)).order_by("pk").first()
+
+        if brand is None:
+            # Обратная совместимость: legacy-бренд «No Brand» переиспользуем и
+            # переименовываем, иначе рядом с ним появился бы второй fallback.
+            brand = (
+                Brand.objects.filter(
+                    Q(slug=LEGACY_FALLBACK_BRAND_SLUG) | Q(normalized_name=LEGACY_FALLBACK_BRAND_NORMALIZED)
+                )
+                .order_by("pk")
+                .first()
+            )
+            if brand is not None:
+                logger.info("Fallback brand renamed: '%s' -> '%s' (slug=%s)", brand.name, name, slug)
+                brand.name = name
+                brand.is_active = True
+                brand.save(update_fields=["name", "normalized_name", "is_active", "updated_at"])
+
+        if brand is None:
+            try:
+                brand, _ = Brand.objects.get_or_create(slug=slug, defaults={"name": name, "is_active": True})
+            except IntegrityError:
+                # Гонка импортов или бренд с тем же normalized_name под другим slug.
+                brand = Brand.objects.filter(Q(slug=slug) | Q(normalized_name=normalized)).order_by("pk").first()
+                if brand is None:
+                    raise
+
+        # Закрепляем нулевой UUID за fallback-брендом: со следующего прогона
+        # (и после объединения брендов) связь читается прямо из маппинга.
+        Brand1CMapping.objects.get_or_create(
+            onec_id=NO_BRAND_ONEC_ID,
+            defaults={"brand": brand, "onec_name": NO_BRAND_ONEC_NAME},
+        )
+        self._fallback_brand = brand
+        return brand
+
+    def _get_mapped_no_brand_brand(self) -> Any | None:
+        """Бренд, закреплённый в админке за нулевым UUID (или None).
+
+        Маппинг на legacy-бренд «No Brand» игнорируем: он ведёт на сущность,
+        которую как раз и убирают с витрины (Story 41.16).
+        """
+        from apps.products.models import Brand1CMapping
+
+        mapping = Brand1CMapping.objects.select_related("brand").filter(onec_id=NO_BRAND_ONEC_ID).first()
+        if mapping is None or mapping.brand is None:
+            return None
+        if mapping.brand.normalized_name == LEGACY_FALLBACK_BRAND_NORMALIZED:
+            logger.warning(
+                "Маппинг нулевого UUID ведёт на legacy-бренд '%s' (id=%s); " "используется fallback-бренд из настроек",
+                mapping.brand.name,
+                mapping.brand.pk,
+            )
+            return None
+        return mapping.brand
+
+    def _resolve_product_category(self, goods_data: dict[str, Any]) -> Any | None:
+        """Категория товара — категория первой его группы 1С, либо None.
+
+        Запасных категорий («Без категории», техкатегория неразрешённых ссылок)
+        импорт больше не создаёт: товар без группы, с неизвестной группой или с
+        группой вне поддерева якоря в БД не попадает вовсе. Ни один путь импорта
+        не создаёт `Category` вне поддерева якоря.
+        """
+        from apps.products.models import Category
+
+        group_ids = self._goods_group_ids(goods_data)
+        if not group_ids:
+            return None
+
+        category_id = group_ids[0]
+        if self._category_filtering_active and category_id not in self._allowed_category_ids:
+            return None
+
+        category = self._category_cache.get(category_id)
+        if category is None:
+            category = Category.objects.filter(onec_id=category_id).first()
+            if category is None:
+                logger.warning(
+                    "Категория группы 1С не найдена в БД — товар не создаётся: category_id=%s product_id=%s",
+                    category_id,
+                    goods_data.get("id"),
+                )
+                return None
+            self._category_cache[category_id] = category
+        return category
+
+    def _generate_unique_slug(self, name: str, parent_id: str) -> str:
+        """Генерирует уникальный slug для Product"""
+        from apps.products.models import Product
+
+        try:
+            from transliterate import translit
+
+            transliterated = translit(name, "ru", reversed=True)
+            base_slug = slugify(transliterated)
+        except (RuntimeError, ImportError):
+            base_slug = slugify(name)
+
+        if not base_slug:
+            base_slug = f"product-{parent_id[:8]}"
+
+        unique_slug = base_slug
+        while Product.objects.filter(slug=unique_slug).exists():
+            unique_slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
+
+        return str(unique_slug)
+
+    def _ensure_unique_sku(self, sku: str) -> str:
+        """Обеспечивает уникальность SKU"""
+        from apps.products.models import ProductVariant
+
+        if not ProductVariant.objects.filter(sku=sku).exists():
+            return sku
+
+        counter = 1
+        unique_sku = f"{sku}-{counter}"
+        while ProductVariant.objects.filter(sku=unique_sku).exists():
+            counter += 1
+            unique_sku = f"{sku}-{counter}"
+
+        return unique_sku
+
+    def _normalize_size_value(self, size_value: str, onec_id: str) -> str:
+        """Отбрасывает «размер», не влезающий в колонку (AC7).
+
+        Импорт пишет `size_value` напрямую, минуя `full_clean()`. Без этой
+        проверки длинное значение возвращает `DataError` и вариант не создаётся
+        вообще — так 25.08.2026 потерялись 12 вариантов. Соседние `color_name`
+        и `sku` уязвимы тем же механизмом, но по замерам 27.08.2026 держатся
+        втрое-восьмеро ниже своего лимита; они вынесены в deferred-work.
+
+        Значение отбрасывается целиком, а не усекается: обрезок вроде
+        «Romana 501.96.00 Оборудование спор» — тот же мусор, только теперь ещё
+        и в `db_index`, и в композитном индексе `idx_variant_characteristics`.
+        Пустое поле честнее.
+
+        Порог берётся из самой модели, чтобы он не мог разойтись с колонкой.
+        Счётчик считает варианты, а не события: один и тот же оффер приезжает
+        в нескольких сегментах `offers_*.xml`, и в отчёте нужно число товаров,
+        а не число встреч.
+        """
+        max_length = self._size_value_max_length
+        # max_length is None — это TextField вместо CharField, то есть колонка,
+        # которая не переполняется. Проверять нечего, значение проходит как есть.
+        if not size_value or max_length is None or len(size_value) <= max_length:
+            return size_value
+
+        if onec_id in self._size_value_dropped_logged:
+            return ""
+        self._size_value_dropped_logged.add(onec_id)
+
+        self.stats["size_value_dropped"] += 1
+        # Общий счётчик warnings намеренно не трогаем: длинные наименования
+        # приезжают каждой выгрузкой, и постоянный фон растворил бы в себе
+        # настоящие предупреждения сессии.
+        preview = " ".join(size_value.split())[:max_length]
+        logger.warning(
+            f"size_value из выгрузки не записан для {onec_id}: {len(size_value)} символов "
+            f"при лимите {max_length} — {preview!r}"
+        )
+        if self._size_value_reports < self.SIZE_VALUE_REPORT_LIMIT:
+            self._size_value_reports += 1
+            self.log_progress(
+                f"size_value из выгрузки не записан ({len(size_value)} символов "
+                f"при лимите {max_length}): {onec_id} — {preview}"
+            )
+        return ""
+
+    def _log_error(self, message: str, data: Any) -> None:
+        """Логирование ошибки"""
+        logger.error(f"{message}: {data}")
+        self.stats["errors"] += 1
+
+    def get_stats(self) -> dict[str, Any]:
+        """Возвращает статистику импорта"""
+        # Limit the lists to avoid huge JSONs
+        limit = 100
+        stats: dict[str, Any] = self.stats.copy()
+
+        stats["updated_products_ids"] = self.updated_products[:limit]
+        stats["updated_variants_ids"] = self.updated_variants[:limit]
+
+        if len(self.updated_products) > limit:
+            stats["updated_products_ids"].append(f"...and {len(self.updated_products) - limit} more")
+
+        if len(self.updated_variants) > limit:
+            stats["updated_variants_ids"].append(f"...and {len(self.updated_variants) - limit} more")
+
+        return stats
+
+    def process_price_types(self, price_types_data: Sequence[PriceTypeData]) -> int:
+        """
+        Создание/обновление справочника PriceType
+
+        Пустой `product_field` (вид цен не опознан маппером) прежний маппинг
+        существующей записи не затирает.
+
+        Неакционные типы, как и прежде, всегда становятся активными. Активность
+        акционных (`promo_price`) решает правило текущей акции:
+
+        - новый акционный тип (запись создана или поле перешло в `promo_price`)
+          без пометки удаления становится текущим, если создан в 1С позже
+          текущего (`promo.is_newer`); из нескольких новых побеждает самый новый;
+        - уже известный акционный тип импорт активным не делает никогда;
+        - пометка удаления гасит тип, пришедший сразу с пометкой создаётся неактивным.
+
+        Args:
+            price_types_data: Последовательность PriceTypeData — файл целиком,
+                иначе «самый новый из файла» выбирается попарно.
+
+        Returns:
+            Количество обработанных типов цен
+        """
+        from apps.products.models import PriceType
+
+        count = 0
+        new_promo_types: list[Any] = []
+        # Весь файл (в нём около десятка строк) идёт под одной исключительной блокировкой
+        # состояния акции: записи читаются под ней и ею же сохраняются, а регистрация новых
+        # акций и выбор текущей не оставляют окна, в которое вклинился бы чужой прогон.
+        # Отдельная блокировка на каждый вид цен позволяла другому процессу зарегистрировать
+        # прочитанный нами «новый» тип, и вся группа новых акций откатывалась на конфликте GUID.
+        with transaction.atomic():
+            promo.lock_promo_state()
+            for price_type_data in price_types_data:
+                try:
+                    with transaction.atomic():
+                        price_type = PriceType.objects.filter(onec_id=price_type_data["onec_id"]).first()
+                        was_promo = price_type is not None and price_type.product_field == promo.PROMO_FIELD
+                        if price_type is None:
+                            price_type = PriceType(onec_id=price_type_data["onec_id"], is_active=False)
+
+                        price_type.onec_name = price_type_data["onec_name"]
+                        # Пустой product_field = вид цен не опознан маппером
+                        # (_map_price_type_to_field вернул ""). Не затираем им корректный
+                        # маппинг существующей записи: переименование вида цен в 1С иначе
+                        # сбило бы рабочее поле, и цены этого вида стали бы молча
+                        # пропускаться guard'ом в update_variant_prices.
+                        # Для новой записи поле останется пустым — цены не применятся,
+                        # что и требуется для неопознанного вида цен.
+                        if price_type_data["product_field"]:
+                            price_type.product_field = price_type_data["product_field"]
+
+                        # Роль видов «VIP цены» и «СПЕЦЦЕНА» известна заранее, а GUID нет:
+                        # проставляем её сами, но заполненную менеджером роль не трогаем
+                        if not price_type.user_role and price_type.product_field in PRICE_TYPE_ROLES:
+                            price_type.user_role = PRICE_TYPE_ROLES[price_type.product_field]
+
+                        if price_type.product_field != promo.PROMO_FIELD:
+                            price_type.is_active = True
+                            promo.save_price_type(price_type)
+                        elif price_type_data.get("is_deleted", False):
+                            promo.deactivate_promo(price_type)
+                        elif not was_promo:
+                            # Новый акционный: не сохраняется до разбора ниже, чтобы регистрация и
+                            # выбор текущей акции шли одной транзакцией (иначе после сбоя повтор
+                            # застал бы его «известным» и никогда не активировал)
+                            price_type.is_active = False
+                            new_promo_types.append(price_type)
+                            continue
+                        else:
+                            # Известная акция: активность импорт не меняет, `is_active` остаётся
+                            # таким, каким он прочитан под блокировкой
+                            promo.save_price_type(price_type)
+                    count += 1
+                except Exception as e:
+                    logger.error(f"Error processing price type: {e}")
+                    self.stats["errors"] += 1
+
+            if new_promo_types:
+                try:
+                    with transaction.atomic():
+                        for candidate in new_promo_types:
+                            candidate.save()
+                        newest = new_promo_types[0]
+                        for candidate in new_promo_types[1:]:
+                            if promo.is_newer(candidate.onec_id, newest.onec_id):
+                                newest = candidate
+                        current = promo.current_promo_type()
+                        if current is None or promo.is_newer(newest.onec_id, current.onec_id):
+                            promo.activate(newest)
+                            logger.info(f"Текущая акция: '{newest.onec_name}' ({newest.onec_id})")
+                    count += len(new_promo_types)
+                except Exception as e:
+                    logger.error(f"Error registering promo price types: {e}")
+                    self.stats["errors"] += 1
+
+        return count
+
+    def _get_price_types(self) -> dict[str, Any]:
+        """
+        Справочник видов цен (onec_id → PriceType), прочитанный из БД заново.
+
+        Не кэшируется: вызывать под `promo.lock_promo_state(shared=True)`, иначе
+        маппинг или активность вида цен могут измениться между чтением и записью цен.
+        """
+        from apps.products.models import PriceType
+
+        return {pt.onec_id: pt for pt in PriceType.objects.all()}
+
+    def process_categories(self, categories_data: list[CategoryData]) -> dict[str, int]:
+        """
+        Обработка категорий с иерархией (Story 3.1.2)
+
+        Двухпроходный алгоритм:
+        1. Создаём все категории без родительских связей
+        2. Устанавливаем родительские связи с валидацией циклов
+
+        Фильтрация корневых категорий:
+        - Если ROOT_CATEGORY_NAME задан: импортируются только якорь и его потомки
+        - Если не задан (None): импортируются все категории (обратная совместимость)
+        - Если задан но не найден ни в XML, ни в БД: logger.error + импорт отменяется
+
+        Args:
+            categories_data: Список данных категорий с полями
+                             id, name, description, parent_id
+
+        Returns:
+            dict с количеством created, updated, errors, cycles_detected,
+            и опционально root_not_found
+        """
+        from apps.products.models import Category
+
+        result: dict[str, int | bool] = {
+            "created": 0,
+            "updated": 0,
+            "errors": 0,
+            "cycles_detected": 0,
+        }
+        category_map: dict[str, Category] = {}
+
+        # ======================================================================
+        # Фильтрация корневых категорий по ROOT_CATEGORY_NAME
+        # ======================================================================
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None)
+        filtering_active = False
+        root_ids: set[str] = set()
+        anchor_id: str | None = None
+
+        # Группы этой сессии: для них дерево и пометки удаления задаёт XML.
+        # Копится между файлами groups*.xml одной сессии.
+        for cat in categories_data:
+            cat_id = cat.get("id")
+            if cat_id:
+                self._xml_groups[cat_id] = (cat.get("parent_id") or "", bool(cat.get("is_deleted")))
+
+        self._admission_ready = True
+
+        if root_category_name:
+            # Определяем root_ids — ID категорий без parent_id (корневые)
+            for cat in categories_data:
+                if not cat.get("parent_id"):
+                    cat_id = cat.get("id")
+                    if cat_id:
+                        root_ids.add(cat_id)
+            # Якорь: сначала среди корней XML, затем в БД (инкрементальный обмен)
+            anchor_id = self._resolve_anchor_id(root_category_name, categories_data, root_ids)
+
+            if anchor_id:
+                filtering_active = True
+                self._anchor_id = anchor_id
+                self._anchor_missing = False
+                self._category_filtering_active = True
+                # Поддерево якоря: XML этой сессии поверх дерева из БД, минус
+                # группы, помеченные на удаление или вынесенные из дерева.
+                self._rebuild_admission_tree()
+
+                logger.info(
+                    f"Category filtering active: anchor='{root_category_name}' "
+                    f"(id={anchor_id}), total_allowed={len(self._allowed_category_ids)}, "
+                    f"root_ids={len(root_ids)}"
+                )
+            else:
+                # ROOT_CATEGORY_NAME задан но не найден ни в XML, ни в БД:
+                # импорт категорий из этого файла отменяется.
+                self._report_anchor_missing(root_category_name)
+                result["root_not_found"] = True
+                return result
+        else:
+            self._warn_root_filter_disabled()
+            self._rebuild_admission_tree()
+
+        self._sync_group_registry()
+
+        # ШАГ 1: Создаём/обновляем категории без parent
+        for i, category_data in enumerate(categories_data):
+            try:
+                onec_id = category_data.get("id")
+                name = category_data.get("name")
+                description = category_data.get("description", "")
+
+                if not onec_id or not name:
+                    result["errors"] += 1
+                    continue
+
+                # Фильтрация: импортируем только якорь СПОРТ и его потомков
+                if filtering_active:
+                    if onec_id not in self._allowed_category_ids:
+                        # Не-allowed (потомки других корневых, помеченные, вынесенные
+                        # из дерева): явный сигнал 1С, категорию погасит finalize_session
+                        self._excluded_category_onec_ids.add(onec_id)
+                        continue
+                elif first_blocked_reason(onec_id, self._group_parent_of, self._marked_groups):
+                    # Без якоря дерево не фильтруется, но группа, помеченная на
+                    # удаление, и её потомки в каталог не попадают.
+                    self._excluded_category_onec_ids.add(onec_id)
+                    continue
+
+                # Допущена: последнее слово за последним состоянием группы в сессии
+                # (помеченная в одном groups*.xml и возвращённая в другом не гасится)
+                self._excluded_category_onec_ids.discard(onec_id)
+
+                if (i + 1) % 50 == 0:
+                    self.log_progress(f"Обработка категорий: {i + 1}...")
+
+                # Если это якорная категория — проверяем наличие repair-якоря с sentinel onec_id.
+                # Repair-команда создаёт якорь с onec_id=REPAIR_ANCHOR_ONEC_ID или без onec_id;
+                # при следующем полном импорте обновляем его реальным onec_id вместо создания дубликата.
+                # CR-5 #2: фильтруем sentinel/blank onec_id на уровне БД ДО .first(),
+                # чтобы при наличии нескольких root СПОРТ не выбрать произвольный с чужим onec_id.
+                if filtering_active and onec_id == anchor_id:
+                    repair_anchor = (
+                        Category.objects.filter(name=name, parent__isnull=True)
+                        .exclude(onec_id=onec_id)
+                        .filter(
+                            models.Q(onec_id__isnull=True)
+                            | models.Q(onec_id="")
+                            | models.Q(onec_id=REPAIR_ANCHOR_ONEC_ID)
+                        )
+                        .order_by("pk")
+                        .first()
+                    )
+                    if repair_anchor:
+                        repair_anchor.onec_id = onec_id
+                        repair_anchor.name = name
+                        repair_anchor.is_active = True
+                        if description:
+                            repair_anchor.description = description
+                        repair_anchor.save(update_fields=["onec_id", "name", "is_active", "description"])
+                        category_map[onec_id] = repair_anchor
+                        result["updated"] += 1
+                        logger.info(f"Repair-якорь '{name}' обновлён реальным onec_id={onec_id}")
+                        continue
+
+                category, created = Category.objects.update_or_create(
+                    onec_id=onec_id,
+                    defaults={
+                        "name": name,
+                        "description": description,
+                        "is_active": True,
+                    },
+                )
+
+                category_map[onec_id] = category
+
+                if created:
+                    result["created"] += 1
+                else:
+                    result["updated"] += 1
+
+            except Exception as e:
+                logger.error(f"Error processing category {category_data}: {e}")
+                result["errors"] += 1
+
+        # ШАГ 2: Устанавливаем родительские связи с валидацией циклов
+        for category_data in categories_data:
+            try:
+                onec_id = category_data.get("id")
+                parent_id = category_data.get("parent_id")
+
+                if not parent_id or not onec_id:
+                    continue  # Корневая категория или ошибка
+
+                child_category: Category | None = category_map.get(onec_id)
+
+                if not child_category:
+                    continue
+
+                # Фильтрация parent при активной фильтрации
+                if filtering_active:
+                    if parent_id in root_ids and parent_id != anchor_id:
+                        # Parent = другая корневая → пропускаем
+                        continue
+
+                parent: Category | None = category_map.get(parent_id)
+
+                if not parent and (not filtering_active or parent_id in self._allowed_category_ids):
+                    # Родитель пришёл в другом groups*.xml этой сессии или уже лежит
+                    # в БД (частичная выгрузка). Без этого поиска ребёнок остался бы
+                    # корнем — то есть категорией вне поддерева якоря.
+                    parent = Category.objects.filter(onec_id=parent_id).first()
+
+                if not parent:
+                    continue
+
+                # Валидация циклических ссылок
+                if self._has_circular_reference(child_category, parent, category_map):
+                    result["cycles_detected"] += 1
+                    continue
+
+                # Устанавливаем parent, включая полный путь СПОРТ -> child -> descendant
+                child_category.parent = parent
+                child_category.save(update_fields=["parent"])
+
+            except Exception:
+                result["errors"] += 1
+
+        logger.info(
+            f"Categories processed: {result['created']} created, "
+            f"{result['updated']} updated, {result['errors']} errors, "
+            f"{result['cycles_detected']} cycles detected"
+            + (f", filtering={'active' if filtering_active else 'inactive'}" "")
+        )
+        return result
+
+    def deactivate_excluded_categories(self) -> None:
+        """Погасить категории, которые 1С явно исключила из дерева каталога.
+
+        Гасятся группы, пришедшие в groups*.xml этой сессии и отсечённые правилом
+        допуска: помеченные на удаление, вынесенные из поддерева якоря и потомки
+        таких групп. Отсутствие категории в XML поводом не считается: 1С шлёт
+        groups*.xml частичными пакетами, и «гасить не пришедших» прятало с витрины
+        живые подкатегории (состояние зависело от последнего пакета).
+
+        Группу, которую следующие файлы сессии вернули в допущенное дерево, не трогаем.
+        Якорь не гасится никогда. Возврат группы включает её в process_categories.
+        """
+        if not self._excluded_category_onec_ids:
+            return
+
+        from apps.products.models import Category
+
+        # allowed пересобирается на каждом groups*.xml: берём итог по всей сессии
+        to_deactivate = self._excluded_category_onec_ids - self._allowed_category_ids
+        if self._anchor_id:
+            to_deactivate.discard(self._anchor_id)
+        if not to_deactivate:
+            return
+
+        with transaction.atomic():
+            # QuerySet.update() намеренно не трогает auto_now-поле updated_at
+            deactivated = Category.objects.filter(onec_id__in=to_deactivate, is_active=True).update(is_active=False)
+
+        logger.info(f"Deactivated {deactivated} categories excluded by 1C (marked for deletion or moved out of tree).")
+        if deactivated:
+            # Оператор Celery-обмена видит только ImportSession: факт гашения должен попасть в отчёт
+            self.stats["categories_deactivated"] = deactivated
+            self.log_progress(
+                f"Категорий погашено по явному сигналу 1С (пометка удаления / вынос из дерева): {deactivated}"
+            )
+
+    def _has_circular_reference(
+        self,
+        category: Any,
+        proposed_parent: Any,
+        category_map: dict[str, Any],
+    ) -> bool:
+        """
+        Проверка циклических ссылок в иерархии категорий
+
+        Обходим родителей proposed_parent и проверяем что category
+        не встречается в цепочке (Story 3.1.2)
+
+        Args:
+            category: Категория для проверки
+            proposed_parent: Предлагаемый родитель
+            category_map: Словарь onec_id -> Category
+
+        Returns:
+            True если обнаружен цикл, False иначе
+        """
+        visited: set[int] = set()
+        current = proposed_parent
+
+        while current:
+            # Если мы вернулись к исходной категории - цикл обнаружен
+            if current.pk == category.pk:
+                return True
+
+            # Защита от бесконечного цикла
+            if current.pk in visited:
+                return True
+
+            visited.add(current.pk)
+
+            # Переходим к parent
+            current = current.parent
+
+        return False
+
+    def process_brands(self, brands_data: Sequence[BrandData]) -> dict[str, int]:
+        """
+        Обработка брендов из propertiesGoods.xml с дедупликацией по normalized_name
+
+        Args:
+            brands_data: Список брендов с полями id и name
+
+        Returns:
+            dict с количеством brands_created, mappings_created, mappings_updated
+        """
+        from apps.products.models import Brand, Brand1CMapping
+        from apps.products.utils.brands import normalize_brand_name
+
+        result = {
+            "brands_created": 0,
+            "mappings_created": 0,
+            "mappings_updated": 0,
+        }
+
+        for i, brand_data in enumerate(brands_data):
+            try:
+                if (i + 1) % 50 == 0:
+                    self.log_progress(f"Обработка брендов: {i + 1}...")
+
+                onec_id = brand_data.get("id")
+                onec_name = brand_data.get("name")
+
+                if not onec_id or not onec_name:
+                    logger.warning(f"Skipping brand with missing id or name: {brand_data}")
+                    continue
+
+                # Нормализуем название для поиска дубликатов
+                normalized = normalize_brand_name(onec_name)
+
+                # Проверяем существующий маппинг для этого onec_id
+                existing_mapping = Brand1CMapping.objects.filter(onec_id=onec_id).first()
+
+                if existing_mapping:
+                    # Маппинг уже существует - обновляем onec_name если изменилось
+                    if existing_mapping.onec_name != onec_name:
+                        existing_mapping.onec_name = onec_name
+                        existing_mapping.save(update_fields=["onec_name"])
+                        result["mappings_updated"] += 1
+                        logger.debug(
+                            "Brand mapping updated",
+                            extra={
+                                "onec_id": onec_id,
+                                "brand_id": existing_mapping.brand.id,
+                                "operation": "update",
+                                "import_session_id": self.session_id,
+                            },
+                        )
+                    else:
+                        result["mappings_updated"] += 1
+                    continue
+
+                # Ищем существующий бренд по normalized_name
+                existing_brand = Brand.objects.filter(normalized_name=normalized).first()
+
+                # Добавляем fallback-поиск бренда по name__iexact
+                if not existing_brand:
+                    existing_brand = Brand.objects.filter(name__iexact=onec_name).first()
+                    if existing_brand:
+                        self.stats["brand_fallbacks"] += 1
+                        logger.info(f"Brand found via fallback: {onec_name}")
+
+                if existing_brand:
+                    # Бренд существует - создаём только маппинг (объединение дубликатов)
+                    Brand1CMapping.objects.create(
+                        brand=existing_brand,
+                        onec_id=onec_id,
+                        onec_name=onec_name,
+                    )
+                    result["mappings_created"] += 1
+
+                    logger.info(
+                        "Brand mapping created - duplicate merged",
+                        extra={
+                            "onec_id": onec_id,
+                            "onec_name": onec_name,
+                            "brand_id": existing_brand.id,
+                            "brand_name": existing_brand.name,
+                            "normalized_name": existing_brand.normalized_name,
+                            "slug": existing_brand.slug,
+                            "operation": "merge",
+                            "import_session_id": self.session_id,
+                        },
+                    )
+                else:
+                    # Бренд не найден - создаём новый бренд + маппинг
+                    # Генерируем уникальный slug
+                    try:
+                        from transliterate import translit
+
+                        transliterated = translit(onec_name, "ru", reversed=True)
+                        base_slug = slugify(transliterated)
+                    except (RuntimeError, ImportError):
+                        base_slug = slugify(onec_name)
+
+                    if not base_slug:
+                        base_slug = f"brand-{onec_id[:8]}"
+
+                    # Обеспечиваем уникальность slug
+                    unique_slug = base_slug
+                    counter = 2
+                    while Brand.objects.filter(slug=unique_slug).exists():
+                        unique_slug = f"{base_slug}-{counter}"
+                        counter += 1
+
+                    # Создаём бренд (normalized_name установится автоматически в save())
+                    brand = Brand.objects.create(
+                        name=onec_name,
+                        slug=unique_slug,
+                        is_active=True,
+                    )
+
+                    # Создаём маппинг
+                    Brand1CMapping.objects.create(
+                        brand=brand,
+                        onec_id=onec_id,
+                        onec_name=onec_name,
+                    )
+
+                    result["brands_created"] += 1
+                    result["mappings_created"] += 1
+
+                    logger.info(
+                        "Brand created with mapping",
+                        extra={
+                            "onec_id": onec_id,
+                            "onec_name": onec_name,
+                            "brand_id": brand.id,
+                            "brand_name": brand.name,
+                            "normalized_name": brand.normalized_name,
+                            "slug": brand.slug,
+                            "operation": "create",
+                            "import_session_id": self.session_id,
+                        },
+                    )
+
+            except Exception as e:
+                logger.error(f"Error processing brand {brand_data}: {e}")
+                self.stats["errors"] += 1
+
+        logger.info(
+            f"Brands processed: {result['brands_created']} brands created, "
+            f"{result['mappings_created']} mappings created, "
+            f"{result['mappings_updated']} mappings updated"
+        )
+
+        # Инвалидация кэша избранных брендов
+        from django.core.cache import cache
+
+        from apps.products.constants import FEATURED_BRANDS_CACHE_KEY
+
+        cache.delete(FEATURED_BRANDS_CACHE_KEY)
+        logger.info("Invalidated featured brands cache after import.")
+
+        return result
+
+    def log_progress(self, message: str) -> None:
+        """
+        Логирование прогресса в консоль и в поле report модели ImportSession.
+        """
+        from django.db.models import F, Value
+        from django.db.models.functions import Concat
+
+        from apps.products.models import ImportSession
+
+        timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+        full_message = f"[{timestamp}] {message}"
+        logger.info(full_message)
+
+        try:
+            ImportSession.objects.filter(pk=self.session_id).update(
+                report=Concat(F("report"), Value(full_message + "\n")),
+                updated_at=timezone.now(),
+            )
+        except Exception as e:
+            logger.error(f"Error updating session report: {e}")
+
+    def finalize_session(self, status: str, error_message: str = "") -> None:
+        """Завершение сессии импорта"""
+        from apps.products.models import ImportSession
+
+        # Перед финальным сохранением статуса применяем деактивацию
+        if status == ImportSession.ImportStatus.COMPLETED or status == "completed":
+            try:
+                self.deactivate_excluded_categories()
+            except Exception as e:
+                logger.error(f"Error during deactivate_excluded_categories: {e}")
+
+        try:
+            session = ImportSession.objects.get(id=self.session_id)
+            session.status = status
+            session.finished_at = timezone.now()
+
+            # Ensure Updated Items are saved in report_details
+            # Limit to 100 to avoid huge JSONs
+            self.stats.update(
+                {
+                    "updated_products_ids": self.updated_products[:100],
+                    "updated_variants_ids": self.updated_variants[:100],
+                }
+            )
+            if len(self.updated_products) > 100:
+                self.stats["updated_products_ids"].append(f"...and {len(self.updated_products) - 100} more")
+            if len(self.updated_variants) > 100:
+                self.stats["updated_variants_ids"].append(f"...and {len(self.updated_variants) - 100} more")
+
+            session.report_details = self.stats
+
+            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+            status_display = dict(ImportSession.ImportStatus.choices).get(status, status)
+            completion_message = f"[{timestamp}] Импорт завершен со статусом: {status_display}\n"
+
+            # CAP-7 в части изображений: числа обязаны быть видны в тексте
+            # отчёта, а не только в JSONB `report_details`.
+            images_line = self.image_report_line()
+            if images_line:
+                completion_message += f"[{timestamp}] {images_line}\n"
+            # Итог правила допуска — если шаги команды его ещё не записали.
+            admission_line = self.admission_report_line()
+            if admission_line and admission_line != self._last_admission_line:
+                completion_message += f"[{timestamp}] {admission_line}\n"
+                self._last_admission_line = admission_line
+            if error_message:
+                completion_message += f"[{timestamp}] Ошибка: {error_message}\n"
+                session.error_message = error_message
+
+            session.report = (session.report or "") + completion_message
+            session.save()
+
+            logger.info(f"Import session {self.session_id} finalized with status: {status}")
+            logger.info(f"Import stats: {self.stats}")
+
+        except ImportSession.DoesNotExist:
+            logger.error(f"ImportSession {self.session_id} not found")

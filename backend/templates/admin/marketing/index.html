@@ -1,0 +1,24 @@
+{% extends "admin/index.html" %}
+{% comment %}
+  Главная раздела маркетинга (стори 42.6). Список моделей — как на главной
+  /admin/; боковой блок «Последние действия» убран, как в разделе менеджера:
+  его ссылки строит LogEntry.get_admin_url() через reverse("admin:…") и уводит
+  в закрытую /admin/. Над списком моделей — число подписчиков рассылки: самих
+  подписчиков маркетинг не видит, модель на сайте не зарегистрирована.
+  Боковое меню включается только руководителю (supervisor_sections): в нём
+  блок «Разделы», а маркетологу оно продублировало бы список моделей главной.
+{% endcomment %}
+{% block nav-sidebar %}{% if supervisor_sections %}{% include "admin/nav_sidebar.html" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="module" id="marketing-subscribers">
+  <table>
+    <caption>Рассылка</caption>
+    <tr>
+      <th scope="row">{{ newsletter_stats.text }}</th>
+      <td></td>
+    </tr>
+  </table>
+</div>
+{{ block.super }}
+{% endblock %}
+{% block sidebar %}{% endblock %}
