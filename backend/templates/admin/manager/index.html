@@ -1,0 +1,44 @@
+{% extends "admin/index.html" %}
+{% comment %}
+  Главная раздела менеджера. Список моделей — как на главной /admin/; боковой
+  блок «Последние действия» убран (стори 42.4, решение 13): его ссылки строит
+  LogEntry.get_admin_url() через reverse("admin:…") и уводит в закрытую /admin/.
+  Над списком моделей — очередь менеджера (стори 42.5): заявки на верификацию
+  и новые заказы своих клиентов, ссылки ведут в списки раздела. Счётчик модели
+  без права просмотра не попадает в очередь; без обоих блока нет. Боковое меню
+  включается только руководителю (supervisor_sections): в нём блок «Разделы»,
+  а менеджеру оно продублировало бы список моделей главной. В конце главной —
+  блок «Инструкции» (staff_instructions из ManagerAdminSite.index): ссылки на
+  страницы /manager/instructions/<slug>/.
+{% endcomment %}
+{% block nav-sidebar %}{% if supervisor_sections %}{% include "admin/nav_sidebar.html" %}{% endif %}{% endblock %}
+{% block content %}
+{% if manager_queue %}
+<div class="module" id="manager-queue">
+  <table>
+    <caption>Очередь</caption>
+    {% for item in manager_queue %}
+    <tr>
+      <th scope="row"><a href="{{ item.url }}">{{ item.text }}</a></th>
+      <td></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{{ block.super }}
+{% if staff_instructions %}
+<div class="module" id="manager-instructions">
+  <table>
+    <caption><a href="{% url 'manager:instructions' %}" class="section">Инструкции</a></caption>
+    {% for item in staff_instructions %}
+    <tr>
+      <th scope="row"><a href="{% url 'manager:instruction' item.slug %}">{{ item.title }}</a></th>
+      <td></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+{% block sidebar %}{% endblock %}

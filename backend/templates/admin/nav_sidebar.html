@@ -1,0 +1,31 @@
+{% load i18n %}
+{% comment %}
+  Боковое меню админки: копия admin/nav_sidebar.html из Django 5.2 плюс блок
+  «Разделы» руководителя. Ключ supervisor_sections кладёт в контекст
+  StaffSectionAdminSite.each_context руководителю во всех трёх разделах
+  (/supervisor/, /manager/, /marketing/); остальным блока нет. Раздел, в
+  котором сидит запрос, помечен как строка модели в admin/app_list.html:
+  current-model на <tr> и aria-current на <a>. Строки — <th scope="row"><a>,
+  как у моделей: быстрый фильтр nav_sidebar.js ищет именно их. При обновлении
+  Django сверь разметку с оригиналом.
+{% endcomment %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+  {% if supervisor_sections %}
+  <div class="app-supervisor-sections module" id="supervisor-sections">
+    <table>
+      <caption>Разделы</caption>
+      {% for section in supervisor_sections %}
+      <tr{% if section.current %} class="current-model"{% endif %}>
+        <th scope="row"><a href="{{ section.url }}"{% if section.current %} aria-current="page"{% endif %}>{{ section.name }}</a></th>
+        <td></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+  <input type="search" id="nav-filter"
+         placeholder="{% translate 'Start typing to filter…' %}"
+         aria-label="{% translate 'Filter navigation items' %}">
+  {% include 'admin/app_list.html' with app_list=available_apps show_changelinks=False %}
+</nav>

@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Заявка отклонена</title>
+  </head>
+
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px">
+      <h1 style="color: #b91c1c">Заявка отклонена</h1>
+
+      <p>Уважаемый(ая) {{ first_name|default:"клиент" }},</p>
+
+      <p>
+        Ваша заявка на регистрацию в OPTISPORT в качестве
+        <strong>{{ role_display }}</strong> отклонена.
+      </p>
+
+      <p>
+        Чтобы выяснить причину отказа, пожалуйста, обратитесь к нам по
+        контактам, указанным на
+        <a href="{{ site_url }}">сайте</a>:
+      </p>
+      <ul>
+        <li>Телефон: <a href="tel:+79682732168">+7 968 273-21-68</a></li>
+        <li>
+          Email: <a href="mailto:info@optisport.ru">info@optisport.ru</a>
+        </li>
+      </ul>
+
+      <p>С уважением,<br />Команда OPTISPORT</p>
+
+      <p style="color: #6b7280; font-size: 12px">
+        Это автоматическое уведомление. Пожалуйста, не отвечайте на это письмо.
+      </p>
+    </div>
+  </body>
+</html>

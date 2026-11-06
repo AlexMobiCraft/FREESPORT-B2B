@@ -1,0 +1,319 @@
+/*
+ * Оформление редактора в Django-админке. Цвета — переменные темы админки,
+ * поэтому светлая и тёмная темы работают без отдельных правил.
+ */
+
+/*
+ * Колонка текста — той же ширины, что на сайте (`--rich-editor-column` задаёт
+ * `data-column-width` виджета; без него — колонка новостей и статей). Поэтому
+ * картинка в редакторе занимает столько же места, сколько на странице сайта.
+ * К колонке добавлены боковые поля текста (2 × 16 px) и запас под полосу прокрутки.
+ */
+.rich-editor {
+  --rich-editor-column: 832px;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: min(100%, calc(var(--rich-editor-column) + 32px + 24px));
+}
+
+.rich-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 6px;
+  border: 1px solid var(--border-color, #ccc);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--darkened-bg, #f8f8f8);
+}
+
+.rich-editor__group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.rich-editor__button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 7px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--body-bg, #fff);
+  color: var(--body-fg, #333);
+  font-size: 13px;
+  line-height: 26px;
+  cursor: pointer;
+}
+
+.rich-editor__button:hover:not(:disabled) {
+  border-color: var(--body-quiet-color, #666);
+}
+
+.rich-editor__button[aria-pressed='true'] {
+  background: var(--selected-bg, #e4e4e4);
+  border-color: var(--body-quiet-color, #666);
+}
+
+.rich-editor__button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rich-editor__button--bold {
+  font-weight: 700;
+}
+
+.rich-editor__button--italic {
+  font-style: italic;
+}
+
+.rich-editor__button--underline {
+  text-decoration: underline;
+}
+
+.rich-editor__button--strike {
+  text-decoration: line-through;
+}
+
+.rich-editor__button--html {
+  font-family: monospace;
+}
+
+.rich-editor__content,
+.rich-editor__source {
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 0 0 4px 4px;
+  background: var(--body-bg, #fff);
+}
+
+/* Прокрутка — на обёртке, а не на тексте: полоса прокрутки не сужает колонку. */
+.rich-editor__content {
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.rich-editor .rich-editor__source {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 420px;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.rich-editor__prose {
+  box-sizing: border-box;
+  max-width: calc(var(--rich-editor-column) + 32px);
+  min-height: 320px;
+  padding: 12px 16px;
+  color: var(--body-fg, #333);
+  /* Как на сайте: от кегля зависит, как текст обтекает картинку. */
+  font-size: 16px;
+  line-height: 1.5;
+  outline: none;
+}
+
+.rich-editor__prose:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--link-fg, #447e9b);
+}
+
+.rich-editor__prose::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+.rich-editor__prose > * + * {
+  margin-top: 0.75em;
+}
+
+.rich-editor__prose p {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+}
+
+.rich-editor__prose h2,
+.rich-editor__prose h3,
+.rich-editor__prose h4 {
+  margin: 1em 0 0.4em;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.rich-editor__prose h2 {
+  font-size: 1.4em;
+}
+
+.rich-editor__prose h3 {
+  font-size: 1.2em;
+}
+
+.rich-editor__prose h4 {
+  font-size: 1.05em;
+}
+
+/*
+ * Внутри fieldset.aligned админка сбрасывает маркеры (`form .aligned ul li`) и
+ * сдвигает список на 160px (`form .aligned ul`), поэтому у правил списков
+ * специфичность выше за счёт `.rich-editor`.
+ */
+.rich-editor .rich-editor__prose ul,
+.rich-editor .rich-editor__prose ol {
+  margin: 0;
+  padding-left: 1.6em;
+}
+
+.rich-editor .rich-editor__prose ul li {
+  list-style: disc;
+}
+
+.rich-editor .rich-editor__prose ol li {
+  list-style: decimal;
+}
+
+.rich-editor__prose li {
+  padding: 0;
+}
+
+.rich-editor__prose blockquote {
+  margin: 0;
+  padding: 0.25em 0 0.25em 1em;
+  border-left: 4px solid var(--border-color, #ccc);
+  color: var(--body-quiet-color, #666);
+}
+
+.rich-editor__prose a {
+  color: var(--link-fg, #447e9b);
+  text-decoration: underline;
+}
+
+.rich-editor__prose table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.rich-editor__prose td,
+.rich-editor__prose th {
+  position: relative;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color, #ccc);
+  vertical-align: top;
+  text-align: left;
+}
+
+.rich-editor__prose th {
+  background: var(--darkened-bg, #f8f8f8);
+  font-weight: 600;
+}
+
+.rich-editor__prose .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(68, 126, 155, 0.15);
+  pointer-events: none;
+}
+
+/*
+ * Картинка: рамка с ручкой размера (`image-view.ts`). Правила ширины — те же, что у
+ * `.rich-content img` на сайте (`frontend/src/app/globals.css`): не шире колонки,
+ * обтекаемая — не шире половины колонки; `width` рамки = `width` у `img` в тексте.
+ */
+.rich-editor__prose .rich-editor__image {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 1em;
+  line-height: 0;
+}
+
+.rich-editor__image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+}
+
+.rich-editor__prose .rich-editor__image.align-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.rich-editor__prose .rich-editor__image.align-left {
+  float: left;
+  max-width: 50%;
+  margin-right: 1.5em;
+}
+
+.rich-editor__prose .rich-editor__image.align-right {
+  float: right;
+  max-width: 50%;
+  margin-left: 1.5em;
+}
+
+.rich-editor__image.ProseMirror-selectednode {
+  outline: 3px solid var(--link-fg, #447e9b);
+}
+
+.rich-editor__resize-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  display: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--body-bg, #fff);
+  border-radius: 50%;
+  background: var(--link-fg, #447e9b);
+  cursor: nwse-resize;
+  /* Без этого касание на планшете прокручивало бы страницу вместо изменения размера. */
+  touch-action: none;
+}
+
+.rich-editor__image.align-right .rich-editor__resize-handle {
+  right: auto;
+  left: -7px;
+  cursor: nesw-resize;
+}
+
+.rich-editor__image.ProseMirror-selectednode .rich-editor__resize-handle,
+.rich-editor__image[data-resizing] .rich-editor__resize-handle {
+  display: block;
+}
+
+.rich-editor__image[data-resizing] {
+  user-select: none;
+}
+
+.rich-editor__prose img.rich-editor__uploading {
+  max-height: 200px;
+  opacity: 0.5;
+  animation: rich-editor-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes rich-editor-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.rich-editor__prose pre {
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--darkened-bg, #f8f8f8);
+  white-space: pre-wrap;
+}
+
+.rich-editor__error {
+  margin-top: 6px;
+  color: var(--error-fg, #ba2121);
+  font-weight: 600;
+}

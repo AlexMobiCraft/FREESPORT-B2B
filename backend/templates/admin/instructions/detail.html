@@ -1,0 +1,37 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% comment %}
+  Страница одной инструкции: хлебные крошки, текст из шаблона реестра
+  (instruction.template) и переходы к остальным инструкциям. Текст
+  инструкции — статический шаблон репозитория, пользовательских данных в нём нет.
+{% endcomment %}
+{% block bodyclass %}{{ block.super }} staff-instructions{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'manager:instructions' %}">Инструкции</a>
+  &rsaquo; {{ instruction.title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="instruction-body">
+  {% include instruction.template %}
+</div>
+
+<div class="module" id="instruction-links">
+  <table>
+    <caption>Другие инструкции</caption>
+    <tr>
+      <th scope="row"><a href="{% url 'manager:instructions' %}">&larr; Все инструкции</a></th>
+      <td></td>
+    </tr>
+    {% for item in other_instructions %}
+    <tr>
+      <th scope="row"><a href="{% url 'manager:instruction' item.slug %}">{{ item.title }}</a></th>
+      <td>{{ item.summary }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

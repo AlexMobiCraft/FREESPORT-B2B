@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+  Надстройка над admin/base_site.html Django: рекурсивное расширение берёт
+  шаблон Django, а не этот файл. Добавляет первой в ряд ссылок пользователя в
+  шапке «Раздел руководителя». Ключ supervisor_home_url кладёт в контекст
+  StaffSectionAdminSite.each_context, когда руководитель сидит в /manager/ или
+  /marketing/; в остальных разделах ссылки нет. Шапка есть на каждой странице
+  и на узких экранах: боковое меню Django там скрыто, а у главной и страниц
+  приложений блок nav-sidebar пуст. В /supervisor/ вместо неё — ссылки на
+  остальные разделы руководителя (supervisor_header_links): на узких экранах
+  и при свёрнутом боковом меню переход между разделами иначе пропадал бы.
+{% endcomment %}
+{% block userlinks %}
+{% if supervisor_home_url %}
+<a id="supervisor-home-link" href="{{ supervisor_home_url }}"><strong>&larr; Раздел руководителя</strong></a> /
+{% endif %}
+{% if supervisor_header_links %}
+<span id="supervisor-header-links">{% for section in supervisor_header_links %}<a href="{{ section.url }}"><strong>{{ section.name }}</strong></a> / {% endfor %}</span>
+{% endif %}
+{{ block.super }}
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% comment %}
+  Сводка руководителя (стори 42.8) — главная /supervisor/ и путь
+  /supervisor/summary/: период, заявки на верификацию по менеджерам, заказы и
+  выручка за период по менеджерам и регионам, клиенты. Числа считает
+  apps/orders/supervisor_summary.py; ссылки строк ведут в списки /manager/,
+  где руководитель видит тот же отдел. Боковое меню — штатное (разделы и
+  модели /supervisor/); блок sidebar пуст, как на главных разделов:
+  «Последние действия» вели бы в закрытую /admin/.
+  Подписи менеджеров и регионов — данные пользователей: только через
+  автоэкранирование, без |safe.
+{% endcomment %}
+{% block bodyclass %}{{ block.super }} supervisor-summary{% endblock %}
+{% block breadcrumbs %}
+{% url 'admin:summary' as summary_url %}
+{% if request.path == summary_url %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; Сводка
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="module" id="summary-period">
+  <form method="get" action="">
+    {% if period_form.errors %}
+    <p class="errornote">Период указан неверно — показан период по умолчанию.</p>
+    {{ period_form.non_field_errors }}
+    {% for field in period_form %}{% if field.errors %}
+    <p>{{ field.label }}:</p>
+    {{ field.errors }}
+    {% endif %}{% endfor %}
+    {% endif %}
+    {% for field in period_form %}
+    {{ field.label_tag }} {{ field }}
+    {% endfor %}
+    <input type="submit" value="Показать">
+  </form>
+  <p>
+    {% for preset in presets %}
+    {% if preset.selected %}<strong>{% endif %}<a href="{{ preset.url }}">{{ preset.name }}</a>{% if preset.selected %}</strong>{% endif %}{% if not forloop.last %} · {% endif %}
+    {% endfor %}
+  </p>
+  <p id="summary-period-label">Период: {{ period.label }}</p>
+</div>
+
+<div class="module" id="summary-pending">
+  <table>
+    <caption>Заявки на верификацию</caption>
+    <thead>
+      <tr>
+        <th scope="col">Ответственный менеджер</th>
+        <th scope="col">Заявок</th>
+        <th scope="col">Старейшая ждёт</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in pending.rows %}
+      <tr{% if row.unassigned %} class="summary-unassigned"{% endif %}>
+        <th scope="row">{% if row.unassigned %}<strong><a href="{{ row.url }}">{{ row.label }}</a></strong>{% else %}<a href="{{ row.url }}">{{ row.label }}</a>{% endif %}</th>
+        <td><a href="{{ row.url }}">{{ row.count }}</a></td>
+        <td>{{ row.age }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="summary-total">
+        <th scope="row">Итого</th>
+        <td>{{ pending.total }}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="help">Текущая очередь, от периода не зависит</p>
+</div>
+
+<h2>Заказы и выручка за период</h2>
+<div class="module" id="summary-orders-by-manager">
+  <table>
+    <caption>По менеджерам</caption>
+    <thead>
+      <tr>
+        <th scope="col">Ответственный менеджер</th>
+        <th scope="col">Заказов</th>
+        <th scope="col">Выручка</th>
+        <th scope="col">Отменено</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in orders_by_manager.rows %}
+      <tr{% if row.special %} class="summary-special"{% endif %}>
+        <th scope="row">{{ row.label }}</th>
+        <td>{{ row.orders }}</td>
+        <td>{{ row.revenue_text }}</td>
+        <td>{{ row.cancelled }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">Заказов за период нет</td></tr>
+      {% endfor %}
+      {% if orders_by_manager.rows %}
+      <tr class="summary-total">
+        <th scope="row">Итого</th>
+        <td>{{ orders_by_manager.total.orders }}</td>
+        <td>{{ orders_by_manager.total.revenue_text }}</td>
+        <td>{{ orders_by_manager.total.cancelled }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <p class="help">По текущему ответственному менеджеру клиента</p>
+</div>
+
+<div class="module" id="summary-orders-by-region">
+  <table>
+    <caption>По регионам</caption>
+    <thead>
+      <tr>
+        <th scope="col">Регион клиента</th>
+        <th scope="col">Заказов</th>
+        <th scope="col">Выручка</th>
+        <th scope="col">Отменено</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in orders_by_region.rows %}
+      <tr>
+        <th scope="row">{{ row.label }}</th>
+        <td>{{ row.orders }}</td>
+        <td>{{ row.revenue_text }}</td>
+        <td>{{ row.cancelled }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">Заказов за период нет</td></tr>
+      {% endfor %}
+      {% if orders_by_region.rows %}
+      <tr class="summary-total">
+        <th scope="row">Итого</th>
+        <td>{{ orders_by_region.total.orders }}</td>
+        <td>{{ orders_by_region.total.revenue_text }}</td>
+        <td>{{ orders_by_region.total.cancelled }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<div class="module" id="summary-clients">
+  <table>
+    <caption>Клиенты</caption>
+    <tr>
+      <th scope="row">Новые регистрации за период: {{ clients.registered }}</th>
+    </tr>
+    <tr>
+      <th scope="row">Верифицированы, но без заказов: <a href="{{ clients.verified_without_orders_url }}">{{ clients.verified_without_orders }}</a> (за всё время)</th>
+    </tr>
+  </table>
+</div>
+{% endblock %}
+{% block sidebar %}{% endblock %}
