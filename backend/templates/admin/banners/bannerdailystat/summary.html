@@ -1,0 +1,99 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% comment %}
+  Сводка статистики баннеров за период — вместо списка Django у
+  BannerDailyStatAdmin (/admin/ и /marketing/): строка на баннер и ERID с
+  суммами показов и кликов. Каскад «Год → Месяц → День»: список месяца — только
+  при выбранном годе, дня — при выбранном месяце. Смена значения отправляет
+  форму и сбрасывает нижние уровни в «За весь период» (inline-скрипт, CSP nginx
+  его допускает); без JS — кнопка «Показать». Числа и опции считает
+  apps/banners/admin.py. Названия баннеров и реквизиты — данные пользователей:
+  только через автоэкранирование, без |safe.
+{% endcomment %}
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} banner-stat-summary{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; {{ opts.verbose_name_plural|capfirst }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="module" id="stat-period">
+  <form method="get" action="" id="stat-period-form">
+    {% if period_error %}
+    <p class="errornote">{{ period_error }}</p>
+    {% endif %}
+    {% for select in period_selects %}
+    <label for="stat-period-{{ select.name }}">{{ select.label }}:</label>
+    <select name="{{ select.name }}" id="stat-period-{{ select.name }}" data-period-level="{{ forloop.counter }}">
+      {% for option in select.options %}
+      <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+      {% endfor %}
+    </select>
+    {% endfor %}
+    <input type="submit" value="Показать">
+  </form>
+  <p id="stat-period-label">Период: {{ period_label }}</p>
+  <p><a class="button" id="stat-export-ord" href="{{ export_url }}">Выгрузить CSV для ОРД</a></p>
+</div>
+
+<div class="module" id="stat-summary">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Баннер (ID)</th>
+        <th scope="col">ERID</th>
+        <th scope="col">Рекламодатель</th>
+        <th scope="col">ИНН</th>
+        <th scope="col">Показы</th>
+        <th scope="col">Клики</th>
+        <th scope="col">CTR</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <th scope="row">{{ row.banner_title|default:"Без названия" }} ({{ row.banner_ref_id }})</th>
+        <td>{{ row.erid|default:"—" }}</td>
+        <td>{{ row.advertiser_name|default:"—" }}</td>
+        <td>{{ row.advertiser_inn|default:"—" }}</td>
+        <td>{{ row.views }}</td>
+        <td>{{ row.clicks }}</td>
+        <td>{{ row.ctr }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7">Показов и кликов за период нет</td></tr>
+      {% endfor %}
+      {% if rows %}
+      <tr class="stat-summary-total">
+        <th scope="row">Итого</th>
+        <td colspan="3"></td>
+        <td>{{ total.views }}</td>
+        <td>{{ total.clicks }}</td>
+        <td>{{ total.ctr }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  (function () {
+    var form = document.getElementById("stat-period-form");
+    if (!form) { return; }
+    var selects = form.querySelectorAll("select[data-period-level]");
+    Array.prototype.forEach.call(selects, function (select) {
+      select.addEventListener("change", function () {
+        var level = Number(select.getAttribute("data-period-level"));
+        Array.prototype.forEach.call(selects, function (other) {
+          if (Number(other.getAttribute("data-period-level")) > level) { other.value = "all"; }
+        });
+        form.submit();
+      });
+    });
+  })();
+</script>
+{% endblock %}
+{% block sidebar %}{% endblock %}
