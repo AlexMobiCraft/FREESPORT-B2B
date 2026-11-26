@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ content.title }}</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: Arial, sans-serif; line-height: 1.6; color: #333">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff">
+      {% if test_notice %}
+      <p style="margin: 0 0 16px; padding: 10px 12px; background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px; color: #92400e; font-weight: bold">{{ test_notice }}</p>
+      {% endif %}
+
+      {% if content.image_url %}
+      <a href="{{ content.url }}" style="display: block; margin-bottom: 20px">
+        <img src="{{ content.image_url }}" alt="{{ content.title }}" width="560" style="display: block; width: 100%; max-width: 560px; height: auto; border: 0; border-radius: 6px" />
+      </a>
+      {% endif %}
+
+      <h1 style="margin: 0 0 16px; font-size: 24px; line-height: 1.3; color: #111827">{{ content.title }}</h1>
+
+      <div style="margin: 0 0 24px; font-size: 16px">{{ content.excerpt_html|safe }}</div>
+
+      <div style="margin: 30px 0; text-align: center">
+        <a
+          href="{{ content.url }}"
+          style="
+            display: inline-block;
+            background-color: #1d4ed8;
+            color: #ffffff;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+          "
+          >Читать на сайте</a
+        >
+      </div>
+
+      <p style="margin: 32px 0 0; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280">
+        Вы получили это письмо, потому что подписались на новости OPTISPORT.<br />
+        <a href="{{ unsubscribe_url }}" style="color: #6b7280">Отписаться от рассылки</a>
+      </p>
+    </div>
+  </body>
+</html>

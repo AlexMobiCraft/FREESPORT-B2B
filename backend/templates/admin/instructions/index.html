@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% comment %}
+  Список инструкций сотрудников раздела менеджера. Строки берутся из реестра
+  apps/users/staff_instructions.py: новая инструкция появляется здесь сама.
+  Ссылки — на /manager/instructions/<slug>/, поэтому адрес строится через
+  пространство имён manager: страница есть только в этом разделе.
+{% endcomment %}
+{% block bodyclass %}{{ block.super }} staff-instructions{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; Инструкции
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="module" id="instructions-list">
+  <table>
+    <caption>Инструкции</caption>
+    {% for item in instructions %}
+    <tr>
+      <th scope="row"><a href="{% url 'manager:instruction' item.slug %}">{{ item.title }}</a></th>
+      <td>{{ item.summary }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

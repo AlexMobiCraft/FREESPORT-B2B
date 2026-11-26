@@ -1,0 +1,7 @@
+# Shell-скрипты исполняет bash в Linux-контейнерах и на сервере: CRLF ломает их
+# ($'\r': command not found). core.autocrlf=true на Windows иначе пишет их с CRLF.
+*.sh text eol=lf
+
+# Собранный бандл визуального редактора админки (frontend/admin-editor): CI сверяет его
+# с результатом `npm run build:admin-editor` побайтно, поэтому git не трогает концы строк.
+backend/apps/common/static/common/rich_editor/** -text

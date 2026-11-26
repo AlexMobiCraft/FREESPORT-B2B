@@ -1,0 +1,12 @@
+{% autoescape off %}{% if test_notice %}{{ test_notice }}
+
+{% endif %}{{ content.title }}
+
+{{ content.excerpt_text }}
+
+Читать на сайте: {{ content.url }}
+
+--
+Вы получили это письмо, потому что подписались на новости OPTISPORT.
+Отписаться от рассылки: {{ unsubscribe_url }}
+{% endautoescape %}

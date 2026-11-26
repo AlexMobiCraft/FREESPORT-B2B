@@ -1,0 +1,17 @@
+{% extends "admin/change_form.html" %}
+{% comment %}
+  Кнопки рассылки на форме новости и статьи блога. Второй ряд под штатным:
+  `submit-row` — блок внутри inclusion-тега submit_line.html, из дочернего
+  шаблона в него не добавить. Штатная «Сохранить» остаётся первой в DOM, поэтому
+  Enter в поле формы сохраняет без отправки. Право `change` проверяется и здесь,
+  и в обработчике (`NewsletterMailingAdminMixin`).
+{% endcomment %}
+{% block submit_buttons_bottom %}
+{{ block.super }}
+{% if has_change_permission and not is_popup %}
+<div class="submit-row newsletter-submit-row">
+  <input type="submit" value="Сохранить и сделать рассылку" name="_newsletter_send">
+  <input type="submit" value="Сохранить и отправить тестовое письмо на мой e-mail" name="_newsletter_test">
+</div>
+{% endif %}
+{% endblock %}

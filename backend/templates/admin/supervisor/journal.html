@@ -1,0 +1,77 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% comment %}
+  Журнал действий сотрудников (стори 42.9): «дата — сотрудник — действие —
+  объект» и подробности. Строки собирает apps/common/staff_journal.py из
+  AuditLog по белому списку ключей: IP, User-Agent и сам JSON записи в
+  шаблон не передаются — руководителю они не нужны, а сырой журнал остаётся
+  у владельца в /admin/. Ссылки объектов ведут в /manager/ и /supervisor/.
+  Блок sidebar пуст, как на главных разделов: «Последние действия» вели бы
+  в закрытую /admin/. Имена, почты и подписи — данные пользователей: только
+  через автоэкранирование, без |safe.
+{% endcomment %}
+{% block bodyclass %}{{ block.super }} supervisor-journal{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; Журнал действий
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="module" id="journal-filter">
+  <form method="get" action="">
+    {% if filter_invalid %}
+    <p class="errornote">Фильтр указан неверно — записи не показаны.</p>
+    {{ filter_form.non_field_errors }}
+    {% for field in filter_form %}{% if field.errors %}
+    <p>{{ field.label }}:</p>
+    {{ field.errors }}
+    {% endif %}{% endfor %}
+    {% endif %}
+    {% for field in filter_form %}
+    {{ field.label_tag }} {{ field }}
+    {% endfor %}
+    <input type="submit" value="Показать">
+  </form>
+  <p>
+    {% for link in period_links %}
+    {% if link.selected %}<strong>{% endif %}<a href="{{ link.url }}">{{ link.name }}</a>{% if link.selected %}</strong>{% endif %}{% if not forloop.last %} · {% endif %}
+    {% endfor %}
+  </p>
+  {% if period_label %}<p id="journal-period-label">{{ period_label }}</p>{% endif %}
+</div>
+
+<div class="module" id="journal-records">
+  <p id="journal-count">{% if paginator.count %}Записей: {{ paginator.count }}{% else %}Записей нет{% endif %}</p>
+  <table>
+    <caption>Журнал действий сотрудников</caption>
+    <thead>
+      <tr>
+        <th scope="col">Дата</th>
+        <th scope="col">Сотрудник</th>
+        <th scope="col">Действие</th>
+        <th scope="col">Объект</th>
+        <th scope="col">Подробности</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="journal-row">
+        <td>{{ row.date }}</td>
+        <td>{{ row.author }}</td>
+        <td>{{ row.action }}</td>
+        <td>{% if row.object_url %}<a href="{{ row.object_url }}">{{ row.object_label }}</a>{% else %}{{ row.object_label }}{% endif %}</td>
+        <td>{{ row.details }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p id="journal-pages">
+    {% if newer_url %}<a href="{{ newer_url }}">← Новее</a>{% endif %}
+    Страница {{ page_obj.number }} из {{ paginator.num_pages }}
+    {% if older_url %}<a href="{{ older_url }}">Старее →</a>{% endif %}
+  </p>
+</div>
+{% endblock %}
+{% block sidebar %}{% endblock %}
